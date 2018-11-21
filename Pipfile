@@ -9,6 +9,7 @@ dask = {extras = ["complete"], version = "*"}
 funtime = "==0.2.7"
 
 [dev-packages]
+pylint = "*"
 
 [requires]
 python_version = "3.6"
