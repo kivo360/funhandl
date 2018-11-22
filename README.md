@@ -102,5 +102,21 @@ The code currently provided is a shell of what's required. In the event that the
 This requires `pipenv` to run. From there the funhandler should work.
 
 ```bash
-    pipenv install -e .
+    virtualenv --distribute .virtualenv/pick-a-name
+    source .virtualenv/pick-a-name/bin/activate
+    pip install pipenv
+    pipenv sync -d
 ```
+
+### MacOS possible issues
+- Issues with installing `ta-lib` dependency during pipenv sync
+```bash
+    > An error occurred while installing ta-lib
+    > error: command 'clang' failed with exit status 1
+```
+Solution: 
+```bash
+    brew install ta-lib
+    pipenv sync -d
+```
+

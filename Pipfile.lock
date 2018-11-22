@@ -81,10 +81,10 @@
         },
         "ccxt": {
             "hashes": [
-                "sha256:324d0bbb067d39f6a90f302e12a091267f5610bc32d02c0e751ace84a26f233a",
-                "sha256:a946de3d91fc4c59c48376d6d1c69e20565846499bb5a66c0210d4cd6036965e"
+                "sha256:8ccbaa7c61a0ab72e2a54f3623414c67225052a149a6b5bfc020486838bd09ab",
+                "sha256:e32fc88bb4f1989f54162cf013d63aa2c24d7254aacd55ac21629bf0756d8f98"
             ],
-            "version": "==1.17.520"
+            "version": "==1.17.528"
         },
         "cerberus": {
             "hashes": [
@@ -118,7 +118,6 @@
                 "sha256:f169a8523a40eb0a3452e1878aac31da6759409fbafa51dd50d89d4a6b42bcf1",
                 "sha256:fac8deaad55cd9e6cc11bb1d61c66da730f3f602ea8433698ef10ce664e520ec"
             ],
-            "markers": "extra == 'complete'",
             "version": "==0.6.1"
         },
         "colorama": {
@@ -171,7 +170,6 @@
                 "sha256:8ab24f0ea634dab7b6667c32b18c98794141f3ef3b081293dfea1943498ce987",
                 "sha256:8dabba19e195536508e7b8c96a72cfdfc406ef7a01c7331268aa36f85d83197d"
             ],
-            "markers": "extra == 'complete'",
             "version": "==1.24.2"
         },
         "enum34": {
@@ -364,7 +362,6 @@
                 "sha256:ecf81720934a0e18526177e645cbd6a8a21bb0ddc887ff9738de07a1df5c6b61",
                 "sha256:edfa6fba9157e0e3be0f40168eb142511012683ac3dc82420bee4a3f3981b30e"
             ],
-            "markers": "extra == 'complete'",
             "version": "==1.15.4"
         },
         "pandas": {
@@ -390,7 +387,6 @@
                 "sha256:f71f1a7e2d03758f6e957896ed696254e2bc83110ddbc6942018f1a232dd9dad",
                 "sha256:fb944c8f0b0ab5c1f7846c686bc4cdf8cde7224655c12edcd59d5212cd57bec0"
             ],
-            "markers": "extra == 'complete'",
             "version": "==0.23.4"
         },
         "partd": {
@@ -398,7 +394,6 @@
                 "sha256:1fd6d9c12f14ea180e659a9e4a686ff2816dd930e8fb0b84c0d8116a29cfe66b",
                 "sha256:fb64ba53fdf8c65cfa8e3a797b7402afab48b14bf1a001d1a9c01291bba0b70c"
             ],
-            "markers": "extra == 'complete'",
             "version": "==0.3.9"
         },
         "pendulum": {
@@ -575,17 +570,17 @@
         },
         "regex": {
             "hashes": [
-                "sha256:1ce9b1e31d34554a7c3c3edb524453e6521ae0fbd37e0c26299e05ae38bd9814",
-                "sha256:5d7e8ad4a4ac4c3ca96e8b32d32530913e3eb15dd368c838d3faa151a1b68d85",
-                "sha256:7bfb6e13ed8195513160550c3a82c49da8bbc6df5d149089cd37f51f36eddd39",
-                "sha256:80bbc5851f707a780d51a92df9eff885a43a44b611f3c1d745022827d4015285",
-                "sha256:8a6fc7e8da98f87a6659f0800ecb6a701afb9506d6c484db810b730eb268a644",
-                "sha256:ac72e3189c401d8d4397149ea1911f6b47a74875468951f48ca9b6c03acdd382",
-                "sha256:b5750b4eec5b64adf66098d922f8cf65b5306ad7a84d58a03f79cda1d2948d62",
-                "sha256:c0dd9b50bc9238ca53466ef1780bcdc5126b181594f1528d2d469d571861fb3f",
-                "sha256:e13fe1f764206e42643e51aff19479685531c0ce728b4828b048867eb3a8e53d"
+                "sha256:15b4a185ae9782133f398f8ab7c29612a6e5f34ea9411e4cd36e91e78c347ebe",
+                "sha256:3852b76f0b6d7bd98d328d548716c151b79017f2b81347360f26e5db10fb6503",
+                "sha256:79a6a60ed1ee3b12eb0e828c01d75e3b743af6616d69add6c2fde1d425a4ba3f",
+                "sha256:a2938c290b3be2c7cadafa21de3051f2ed23bfaf88728a1fe5dc552cbfdb0326",
+                "sha256:aff7414712c9e6d260609da9c9af3aacebfbc307a4abe3376c7736e2a6c8563f",
+                "sha256:d03782f0b0fa34f8f1dbdc94e27cf193b83c6105307a8c10563938c6d85180d9",
+                "sha256:db79ac3d81e655dc12d38a865dd6d1b569a28fab4c53749051cd599a6eb7614f",
+                "sha256:e803b3646c3f9c47f1f3dc870173c5d79c0fd2fd8e40bf917b97c7b56701baff",
+                "sha256:e9660ccca360b6bd79606aab3672562ebb14bce6af6c501107364668543f4bef"
             ],
-            "version": "==2018.11.7"
+            "version": "==2018.11.22"
         },
         "requests": {
             "hashes": [
@@ -671,7 +666,6 @@
             "hashes": [
                 "sha256:929f0a7ea7f61c178bd951bdae93920515d3fbdbafc8e6caf82d752b9b3b31c9"
             ],
-            "markers": "extra == 'complete'",
             "version": "==0.9.0"
         },
         "tornado": {
