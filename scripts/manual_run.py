@@ -24,8 +24,17 @@ test_price_data = [
 def main():
     fh.set_host('localhost')
     fh.set_store_name('test_store_name')
+    fh.set_storage_model('local')
+    fh.set_local_storage_info(base_path='/tmp', storage_folder='parquet_data')
     fh.initialize_database()
     fh.add_bars(test_price_data)
+    fh.load_data(**{
+        "type": "price",
+        "base": "ETC",
+        "trade": "BTC",
+        "exchange": "binance",
+        "period": "minute"}
+    )
 
     # call funpicker
     # from funpicker import Query, QueryTypes

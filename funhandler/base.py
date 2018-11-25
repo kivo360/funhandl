@@ -5,7 +5,6 @@ this = sys.modules['funhandler']
 # Use these variables to handle the database
 
 
-
 def set_host(host):
     if (this.host is None):
         # also in local function scope. no scope specifier like global is needed

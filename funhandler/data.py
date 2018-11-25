@@ -1,7 +1,13 @@
+import os
 import sys
 import time
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 from funpicker import Query, QueryTypes
+
+from funhandler.file_manager import store_local_storage
+from funhandler.file_manager import store_cloud_storage
 # this is a pointer to the module object instance itself. 
 # NOTE: We use this to set module-wide variables such as the storage location
 this = sys.modules['funhandler']
@@ -119,18 +125,97 @@ def save_to_funtime(data, **kwargs):
         if kwargs.get('timestamp') is not None:
             this.db[this.store_name].store(item)
 
-def load_data(base, trade, exchange, limit=500, period='minute', latest=False, start=time.time()):
+def load_data(**kwargs):
+    """ Loads data based on the provided args to parquet file
+
+    Provided kwargs contain query information wchich is used to
+    query funtime. If any of the results are found - they will be
+    saved to parquet file either to loca_storage or cloud_storage
+    depending on what storage model is setup by the user.
+
+    Raises
+    ------
+        TODO: add custom exception handlers for different issues.
+        Exception()
+            if file storage fails. Message will contain the reason.
+    """
     # if data exist with the given parameters pull from the funtime library
+    result = this.db[this.store_name].query(kwargs)
+    _exhausted = object()
+    if next(result, _exhausted) == _exhausted:
+        # not data found, will return False
+        print(f"No data was found with params: {kwargs}")
+        return False
 
     # Create a pandas dataframe for the data
-
+    df = pd.DataFrame(result)
+    print(df)
     # Create a parquet file
+    table = pa.Table.from_pandas(df)
+    file_name = 'data.parquet'
+    try:
+        # Save the parquet file somewhere
+        # save file locally or in the cloud
+        if this.current_storage_type == 'local':
+            file_path = os.path.join(
+                this.storage_information['base_path'],
+                this.storage_information['storage_folder'])
+            if not os.path.isdir(file_path):
+                os.makedirs(file_path)
 
-    # Save the parquet file somewhere
+            pq.write_table(
+                table,
+                os.path.join(file_path, file_name)
+            )
+            file_storage_info = {
+                'base_path': this.storage_information['base_path'],
+                'storage_folder': this.storage_information['storage_folder'],
+                'full_path': os.path.join(
+                    this.storage_information['base_path'],
+                    this.storage_information['storage_folder'],
+                    file_name
+                )
+            }
+        elif this.current_storage_type == 'cloud':
+            # TODO: store file in the cloud (AWS S3/GCS)
+
+            # Store file locally first and then upload to cloud
+            # pq.write_table(
+            #     table,
+            #     os.path.join('/tmp', file_name)
+            # )
+
+            # Upload file to cloud here
+            # store_cloud_storage('/tmp/data.parquet')
+            file_storage_info = {
+                'base_path': this.storage_information['base_path'],
+                'bucket_name': this.storage_information['bucket_name'],
+                'full_path': os.path.join(
+                    this.storage_information['bucket_name'],
+                    this.storage_information['base_path'],
+                    file_name
+                )
+            }
+            pass
+        else:
+            raise Exception(
+                "Storage model and/or storage info is not setup. "
+                "Please use 'set_storage_model()' and/or 'set_local_storage_info()' "
+                "to setup file storage configs.")
+    except Exception as ex:
+        raise ex
 
     # Add the location into funtime
+    # Store file location to funtime as a new object.
+    file_location = {
+        'storage_type': this.current_storage_type,
+        'file_name': file_name,
+        'type': 'parquet_file',
+        'timestamp': time.time(),
+    }
+    file_location.update(file_storage_info)
+    this.db[this.store_name].store(file_location)
     return True
-
 
 def get_latest_data(query_args):
     if not isinstance(query_args, dict):
@@ -143,9 +228,7 @@ def get_latest_data(query_args):
     
     return True, last_ran[0]
 
-
-
-def get_latest_bar(base, trade, exchange, limit=500, period='minute', latest=False, start=time.time()):
+def get_latest_bar(base, trade, exchange, limit=500, period='minute', data_type='price'):
     # Load the latest bars from the last loaded data (inside of the funtime library)
 
     # Turn parquet file into latest bar
@@ -155,7 +238,7 @@ def get_latest_bar(base, trade, exchange, limit=500, period='minute', latest=Fal
     
     # Query information goes here
     
-    q_info = {'base':base, 'trade':trade, 'exchange': exchange, 'limit': limit, 'period': period, 'type': 'loaded_bars'}
+    q_info = {'base':base, 'trade':trade, 'exchange': exchange, 'limit': limit, 'period': period, 'type': data_type}
     # Should have the latest table or nothing
     latest_bar_table = get_latest_data(q_info)
 

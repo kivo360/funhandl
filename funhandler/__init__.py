@@ -7,6 +7,13 @@ from .base import (
     get_db_params,
 )
 from .data import add_bars, load_data
+from .file_manager import (
+    set_storage_model,
+    set_local_storage_info,
+    set_cloud_storage_info,
+    store_local_storage,
+    store_cloud_storage,
+)
 
 this = sys.modules[__name__]
 
