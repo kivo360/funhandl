@@ -7,9 +7,12 @@ name = "pypi"
 funhandler = {editable = true, path = "."}
 dask = {extras = ["complete"], version = "*"}
 funtime = "==0.2.7"
+pyarrow = "*"
 
 [dev-packages]
 pylint = "*"
+pytest = "*"
+ipython = "*"
 
 [requires]
 python_version = "3.6"

@@ -1,11 +1,8 @@
 import sys
 from funtime import Store, Converter
 # this is a pointer to the module object instance itself.
-this = sys.modules[__name__]
+this = sys.modules['funhandler']
 # Use these variables to handle the database
-this.store_name = 'datahandler'
-this.host = None
-this.db = None
 
 
 def set_host(host):
@@ -13,12 +10,10 @@ def set_host(host):
         # also in local function scope. no scope specifier like global is needed
         this.host = host
     else:
-        msg = "Database is already initialized to {0}."
-        form = msg.format(this.host)
-        raise RuntimeError(form)
+        raise RuntimeError(f"Database is already initialized to {this.host}.")
 
-def set_lib_name(name):
-    this.store_name = name
+def set_store_name(store_name):
+    this.store_name = store_name
 
 def initialize_database():
     """
@@ -27,7 +22,25 @@ def initialize_database():
     # TODO: Refactor the funtime library
     this.db = Store(this.host).create_lib(this.store_name).get_store()
 
-    
-    
+def get_db_params():
+    return {
+        "host": this.host,
+        "store_name": this.store_name,
+        "db": this.db,
+    }
+
+def set_file_storage(source='local', **kwargs):
+    """ Creates file storage depending
+
+    Parameters
+    ----------
+    source: str
+        Default is 'local' which will create
+        file storage in the local environment
+    kwargs: dict
+        Contains data to setup S3 storage
+    """
+    pass
+
 
 # TODO: Set storage location eventually too for the parkquet file

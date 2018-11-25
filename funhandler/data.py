@@ -1,61 +1,221 @@
+import os
 import sys
 import time
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+from funpicker import Query, QueryTypes
+
+from funhandler.file_manager import store_local_storage
+from funhandler.file_manager import store_cloud_storage
 # this is a pointer to the module object instance itself. 
 # NOTE: We use this to set module-wide variables such as the storage location
-this = sys.modules[__name__]
+this = sys.modules['funhandler']
 
-def add_bars(source, base, trade, exchange):
+# TODO: add proper logging
+
+def add_bars(data):
+    """ Adds the bars of the current data to the database
+
+    This function receives list(dict) or will convert pd.DataFrame
+    to list(dict). Data should contain required keys in it that
+    will be used to query `funpicker`. Once funpicker response is
+    ready data will be stored to `funtime`.
+
+    Function will do basic validation on the incoming data.
+    --------------------------------------------------------------
+
+    Parameters
+    ----------
+    data: list(dict)
+        List of lookups 
+    Returns
+    -------
+    bool
+        False - if anything went wrong TODO: add exceptions
+        True - if bars were saved successfully
+
+    Raises
+    ------
+    AttributeError
+        Raised when passed datatype is not correct
+
+    KeyError
+        Raised when required keys missing in passed data
+        
     """
-        # ADD BARS
-        ---
 
-        Adds the bars of the current data source to the database.
-    """
+    # Start validation of incoming  data
 
-    # Some initial filtering here
-    if not isinstance(source, pd.DataFrame):
+    # 0. If data is None, return False
+    if not data:
         return False
-    
-    if not isinstance(base, str):
-        return False
-    
-    if not isinstance(trade, str):
-        return False
-    
+    # 1. Check if datatype of incoming data is list(dict)
+    #    If data is a pd.DataFrame -> convert it to list(dict)
+    if not isinstance(data, list):
+        if isinstance(data, pd.FataFrame):
+            data = data.to_dict('records')
+        else:
+            raise AttributeError("Not valid datatype for param data provided."
+                                 "Datatype has to be list(dict) or pandas.DataFrame.")
 
-    # Ensure all of the necessary columns are here
-    cols = source.columns
-    
-    # Ask me which data needs to be validated against
-    if not set(['base','trade', 'exchange', 'period', 'timestamp']).issubset(cols):
-        return False
+    # 2. Ensure all of the necessary keys are here
+    required_keys = ['base', 'trade', 'exchange', 'period', 'timestamp', 'type']
+    for item in data:
+        keys = item.keys()
+        if not set(required_keys).issubset(keys):
+            raise KeyError("Some required keys are not present in dataset:"
+                           f"dataset: {keys}, required: {required_keys}")
 
-    # Resample the data you insert here to the given time period
+        # NOTE:
+        # we can start processing and pulling data from funpicker at this
+        # point. The question is: do we want to know if all dataset has valid
+        # keys first or not?
 
-    # remove all nan as 0
-    # Store data into the database here
-    records = source.to_dict('records')
+        # The way I would think we need to do is to skip whatever lines are not correct and
+        # process what we can and maybe record where data was wrong and retun 'Warnings' back
+        # to user.
 
-    # Store many into the funtime library
-    this.db[this.store_name]
+    # End validation
+
+    # Get bars data from `funpicker`
+    list_of_results = []
+    for item in data:
+        result = _get_bars_data_from_funpicker(**item)
+        if (isinstance(result, dict)
+            and result.get('Response')
+            and result['Response'] == 'Error'):
+            print(f"Error for a pair: {item['base']}-{item['trade']} | "
+                  f"Message: {result.get('Message')}")
+            continue
+        if not result:
+            continue
+        # TODO: remove all NaN as 0
+        save_to_funtime(result, **item)
+
     return True
 
+def _get_bars_data_from_funpicker(data={},limit=30,**kwargs):
+    crypto = kwargs['base']
+    fiat = kwargs['trade']
+    exchange = kwargs['exchange']
+    period = kwargs['period']
+    # query_type = kwargs['type']
 
+    return (Query().set_crypto(crypto)
+                   .set_fiat(fiat)
+                   .set_exchange(exchange)
+                   .set_period(period)
+                   .set_limit(limit)
+                   .get())
 
+def save_to_funtime(data, **kwargs):
+    """ Store data results to funtime
 
-def load_data(base, trade, exchange, limit=500, period='minute', latest=False, start=time.time()):
+    Parameters
+    ----------
+    data: list(dict)
+        Response data from funpicker
+    """
+    for item in data:
+        item.update(kwargs)
+        # TODO: funtime doesn't have store_many functionality as of right now.
+        # once that is added we should be able to pass a list to funtime and
+        # it will handle batch load.
+        if kwargs.get('timestamp') is not None:
+            this.db[this.store_name].store(item)
+
+def load_data(**kwargs):
+    """ Loads data based on the provided args to parquet file
+
+    Provided kwargs contain query information wchich is used to
+    query funtime. If any of the results are found - they will be
+    saved to parquet file either to loca_storage or cloud_storage
+    depending on what storage model is setup by the user.
+
+    Raises
+    ------
+        TODO: add custom exception handlers for different issues.
+        Exception()
+            if file storage fails. Message will contain the reason.
+    """
     # if data exist with the given parameters pull from the funtime library
+    result = this.db[this.store_name].query(kwargs)
+    _exhausted = object()
+    if next(result, _exhausted) == _exhausted:
+        # not data found, will return False
+        print(f"No data was found with params: {kwargs}")
+        return False
 
     # Create a pandas dataframe for the data
-
+    df = pd.DataFrame(result)
+    print(df)
     # Create a parquet file
+    table = pa.Table.from_pandas(df)
+    file_name = 'data.parquet'
+    try:
+        # Save the parquet file somewhere
+        # save file locally or in the cloud
+        if this.current_storage_type == 'local':
+            file_path = os.path.join(
+                this.storage_information['base_path'],
+                this.storage_information['storage_folder'])
+            if not os.path.isdir(file_path):
+                os.makedirs(file_path)
 
-    # Save the parquet file somewhere
+            pq.write_table(
+                table,
+                os.path.join(file_path, file_name)
+            )
+            file_storage_info = {
+                'base_path': this.storage_information['base_path'],
+                'storage_folder': this.storage_information['storage_folder'],
+                'full_path': os.path.join(
+                    this.storage_information['base_path'],
+                    this.storage_information['storage_folder'],
+                    file_name
+                )
+            }
+        elif this.current_storage_type == 'cloud':
+            # TODO: store file in the cloud (AWS S3/GCS)
+
+            # Store file locally first and then upload to cloud
+            # pq.write_table(
+            #     table,
+            #     os.path.join('/tmp', file_name)
+            # )
+
+            # Upload file to cloud here
+            # store_cloud_storage('/tmp/data.parquet')
+            file_storage_info = {
+                'base_path': this.storage_information['base_path'],
+                'bucket_name': this.storage_information['bucket_name'],
+                'full_path': os.path.join(
+                    this.storage_information['bucket_name'],
+                    this.storage_information['base_path'],
+                    file_name
+                )
+            }
+            pass
+        else:
+            raise Exception(
+                "Storage model and/or storage info is not setup. "
+                "Please use 'set_storage_model()' and/or 'set_local_storage_info()' "
+                "to setup file storage configs.")
+    except Exception as ex:
+        raise ex
 
     # Add the location into funtime
+    # Store file location to funtime as a new object.
+    file_location = {
+        'storage_type': this.current_storage_type,
+        'file_name': file_name,
+        'type': 'parquet_file',
+        'timestamp': time.time(),
+    }
+    file_location.update(file_storage_info)
+    this.db[this.store_name].store(file_location)
     return True
-
 
 def get_latest_data(query_args):
     if not isinstance(query_args, dict):
@@ -68,9 +228,7 @@ def get_latest_data(query_args):
     
     return True, last_ran[0]
 
-
-
-def get_latest_bar(base, trade, exchange, limit=500, period='minute', latest=False, start=time.time()):
+def get_latest_bar(base, trade, exchange, limit=500, period='minute', data_type='price'):
     # Load the latest bars from the last loaded data (inside of the funtime library)
 
     # Turn parquet file into latest bar
@@ -80,7 +238,7 @@ def get_latest_bar(base, trade, exchange, limit=500, period='minute', latest=Fal
     
     # Query information goes here
     
-    q_info = {'base':base, 'trade':trade, 'exchange': exchange, 'limit': limit, 'period': period, 'type': 'loaded_bars'}
+    q_info = {'base':base, 'trade':trade, 'exchange': exchange, 'limit': limit, 'period': period, 'type': data_type}
     # Should have the latest table or nothing
     latest_bar_table = get_latest_data(q_info)
 
