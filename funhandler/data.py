@@ -96,8 +96,12 @@ def _get_bars_data_from_funpicker(data={},limit=30,**kwargs):
     period = kwargs['period']
     # query_type = kwargs['type']
 
-    fpq = Query().set_crypto(crypto).set_fiat(fiat).set_exchange(exchange).set_period(period).set_limit(limit).get()
-    return fpq
+    return (Query().set_crypto(crypto)
+                   .set_fiat(fiat)
+                   .set_exchange(exchange)
+                   .set_period(period)
+                   .set_limit(limit)
+                   .get())
 
 def save_to_funtime(data, **kwargs):
     """ Store data results to funtime
@@ -107,15 +111,12 @@ def save_to_funtime(data, **kwargs):
     data: list(dict)
         Response data from funpicker
     """
-    data_type = kwargs.get('type', 'price')
-    timestamp = kwargs.get('timestamp', None)
     for item in data:
+        item.update(kwargs)
         # TODO: funtime doesn't have store_many functionality as of right now.
         # once that is added we should be able to pass a list to funtime and
         # it will handle batch load.
-        item['type'] = data_type       
-        item['timestamp'] = timestamp
-        if timestamp:
+        if kwargs.get('timestamp') is not None:
             this.db[this.store_name].store(item)
 
 def load_data(base, trade, exchange, limit=500, period='minute', latest=False, start=time.time()):
