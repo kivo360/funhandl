@@ -14,6 +14,7 @@ this = sys.modules['funhandler']
 
 # TODO: add proper logging
 
+
 def add_bars(data):
     """ Adds the bars of the current data to the database
 
@@ -53,7 +54,7 @@ def add_bars(data):
     # 1. Check if datatype of incoming data is list(dict)
     #    If data is a pd.DataFrame -> convert it to list(dict)
     if not isinstance(data, list):
-        if isinstance(data, pd.FataFrame):
+        if isinstance(data, pd.DataFrame):
             data = data.to_dict('records')
         else:
             raise AttributeError("Not valid datatype for param data provided."
@@ -125,6 +126,19 @@ def save_to_funtime(data, **kwargs):
         if kwargs.get('timestamp') is not None:
             this.db[this.store_name].store(item)
 
+def _convert_to_pq_and_save(df, file_name):
+    table = pa.Table.from_pandas(df)
+    file_path = os.path.join(
+        this.storage_information['base_path'],
+        this.storage_information['storage_folder']
+    )
+    if not os.path.isdir(file_path):
+        os.makedirs(file_path)
+    pq.write_table(
+        table,
+        os.path.join(file_path, file_name)
+    )
+
 def load_data(**kwargs):
     """ Loads data based on the provided args to parquet file
 
@@ -149,24 +163,13 @@ def load_data(**kwargs):
 
     # Create a pandas dataframe for the data
     df = pd.DataFrame(result)
-    print(df)
-    # Create a parquet file
-    table = pa.Table.from_pandas(df)
-    file_name = 'data.parquet'
+    file_name = f'data_{int(time.time())}.parquet'
     try:
         # Save the parquet file somewhere
         # save file locally or in the cloud
         if this.current_storage_type == 'local':
-            file_path = os.path.join(
-                this.storage_information['base_path'],
-                this.storage_information['storage_folder'])
-            if not os.path.isdir(file_path):
-                os.makedirs(file_path)
 
-            pq.write_table(
-                table,
-                os.path.join(file_path, file_name)
-            )
+            _convert_to_pq_and_save(df, file_name)
             file_storage_info = {
                 'base_path': this.storage_information['base_path'],
                 'storage_folder': this.storage_information['storage_folder'],
@@ -180,10 +183,12 @@ def load_data(**kwargs):
             # TODO: store file in the cloud (AWS S3/GCS)
 
             # Store file locally first and then upload to cloud
+            # _convert_to_pq_and_save(df, file_name)
             # pq.write_table(
             #     table,
             #     os.path.join('/tmp', file_name)
             # )
+            # 
 
             # Upload file to cloud here
             # store_cloud_storage('/tmp/data.parquet')
@@ -196,6 +201,7 @@ def load_data(**kwargs):
                     file_name
                 )
             }
+            # cleanup from local
             pass
         else:
             raise Exception(
@@ -214,8 +220,33 @@ def load_data(**kwargs):
         'timestamp': time.time(),
     }
     file_location.update(file_storage_info)
+    extra_params = kwargs
+    del extra_params['type']
+    file_location.update(extra_params)
     this.db[this.store_name].store(file_location)
     return True
+
+def is_still_bars(**kwargs):
+    """ Check if parquet file has any bars
+
+    Parameters
+    ----------
+    kwargs: dict
+        query params
+
+    Returns
+    -------
+    bool
+    """
+    # limit = kwargs.get('limit', 1)
+    query_params = kwargs
+    query_params['type'] = 'parquet_file'
+    result, data = get_latest_data(query_params)
+    if not result:
+        return False
+    df_data = pd.read_parquet(data['full_path'])
+    if not df_data.empty:
+        return True
 
 def get_latest_data(query_args):
     if not isinstance(query_args, dict):
@@ -227,6 +258,34 @@ def get_latest_data(query_args):
         return False, {}
     
     return True, last_ran[0]
+
+def get_latest_bar_v2(**kwargs):
+    """ Get latest bar(s) from parquet file
+        based on provided params
+
+    Parameters
+    ----------
+    kwargs: dict
+        query params
+
+    Returns
+    -------
+    pandas.Dataframe
+        contains >= 1 rows, depending on the provided limit
+    """
+    limit = kwargs.get('limit', 1) # if limit provided then it will be the number of rows returned back.
+    if 'limit' in kwargs:
+        del kwargs['limit']
+    query_params = kwargs
+    query_params['type'] = 'parquet_file'
+    result, data = get_latest_data(query_params)
+    if not result:
+        raise LookupError(f"No data found. Params {kwargs}")
+    df_data = pd.read_parquet(data['full_path'])
+    result = df_data.tail(limit)
+    df_data.drop(df_data.tail(limit).index, inplace=True)
+    _convert_to_pq_and_save(df_data, data['file_name'])
+    return result
 
 def get_latest_bar(base, trade, exchange, limit=500, period='minute', data_type='price'):
     # Load the latest bars from the last loaded data (inside of the funtime library)
