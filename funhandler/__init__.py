@@ -6,7 +6,12 @@ from .base import (
     initialize_database,
     get_db_params,
 )
-from .data import add_bars, load_data
+from .data import (
+    add_bars,
+    load_data,
+    is_still_bars,
+    get_latest_bar_v2,
+)
 from .file_manager import (
     set_storage_model,
     set_local_storage_info,
