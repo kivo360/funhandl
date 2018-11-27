@@ -4,6 +4,7 @@ import time
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+from distributed.worker import thread_state
 from funpicker import Query, QueryTypes
 
 from funhandler.file_manager import store_local_storage
@@ -118,6 +119,12 @@ def save_to_funtime(data, **kwargs):
     data: list(dict)
         Response data from funpicker
     """
+    # db = this.db
+    # store_name = this.store_name
+    # if not db:
+    #     db = thread_state.db
+    #     store = thread_state.store_name
+
     for item in data:
         item.update(kwargs)
         # TODO: funtime doesn't have store_many functionality as of right now.
@@ -127,6 +134,9 @@ def save_to_funtime(data, **kwargs):
             this.db[this.store_name].store(item)
 
 def _convert_to_pq_and_save(df, file_name):
+    # storage_information = this.storage_information
+    # if not storage_information:
+    #     thread_state.storage_information = 
     table = pa.Table.from_pandas(df)
     file_path = os.path.join(
         this.storage_information['base_path'],

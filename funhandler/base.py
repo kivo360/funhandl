@@ -1,4 +1,5 @@
 import sys
+from distributed.worker import thread_state
 from funtime import Store, Converter
 # this is a pointer to the module object instance itself.
 this = sys.modules['funhandler']
@@ -10,7 +11,7 @@ def set_host(host):
         # also in local function scope. no scope specifier like global is needed
         this.host = host
     else:
-        raise RuntimeError(f"Database is already initialized to {this.host}.")
+        print(f"Database is already initialized to {this.host}.")
 
 def set_store_name(store_name):
     this.store_name = store_name

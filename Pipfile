@@ -4,6 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+asyncio = "*"
 funhandler = {editable = true, path = "."}
 dask = {extras = ["complete"], version = "*"}
 funtime = "==0.2.7"
