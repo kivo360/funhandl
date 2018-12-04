@@ -1,4 +1,15 @@
 # Funhandler
+This is the general data handler for the funguana main trading bot.
+
+## Requirements
+- pandas
+- funtime
+- funpicker
+- dask[complete]
+## How to install
+```
+pip install funhandler
+```
 This is the general data handler for the funguana main trading bot
 
 Use to run through various events inside of the DB.
