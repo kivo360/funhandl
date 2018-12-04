@@ -61,14 +61,17 @@ def add_bars(data):
             raise AttributeError("Not valid datatype for param data provided."
                                  "Datatype has to be list(dict) or pandas.DataFrame.")
 
+    # print(data)
     # 2. Ensure all of the necessary keys are here
-    required_keys = ['base', 'trade', 'exchange', 'period', 'timestamp', 'type']
+    # You did it wrong here man. We need to be able to add new keys. If the data isn't prepared it wont work.
+    required_keys = ['base', 'trade', 'exchange', 'period', 'type']
     for item in data:
         keys = item.keys()
         if not set(required_keys).issubset(keys):
             raise KeyError("Some required keys are not present in dataset:"
                            f"dataset: {keys}, required: {required_keys}")
 
+        # item['type'] = "price"
         # NOTE:
         # we can start processing and pulling data from funpicker at this
         # point. The question is: do we want to know if all dataset has valid
@@ -81,7 +84,7 @@ def add_bars(data):
     # End validation
 
     # Get bars data from `funpicker`
-    list_of_results = []
+    # Another question. Why do we need the timestamp?
     for item in data:
         result = _get_bars_data_from_funpicker(**item)
         if (isinstance(result, dict)
@@ -97,11 +100,12 @@ def add_bars(data):
 
     return True
 
-def _get_bars_data_from_funpicker(data={},limit=30,**kwargs):
+def _get_bars_data_from_funpicker(data={},limit=800,**kwargs):
     crypto = kwargs['base']
     fiat = kwargs['trade']
     exchange = kwargs['exchange']
     period = kwargs['period']
+
     # query_type = kwargs['type']
 
     return (Query().set_crypto(crypto)
@@ -124,13 +128,14 @@ def save_to_funtime(data, **kwargs):
     # if not db:
     #     db = thread_state.db
     #     store = thread_state.store_name
-
+    # print(kwargs)
     for item in data:
         item.update(kwargs)
         # TODO: funtime doesn't have store_many functionality as of right now.
         # once that is added we should be able to pass a list to funtime and
         # it will handle batch load.
-        if kwargs.get('timestamp') is not None:
+        if item.get('time') is not None:
+            item.update({"timestamp": float(item['time'])})
             this.db[this.store_name].store(item)
 
 def _convert_to_pq_and_save(df, file_name):
@@ -173,6 +178,10 @@ def load_data(**kwargs):
 
     # Create a pandas dataframe for the data
     df = pd.DataFrame(result)
+
+    ss = pd.to_datetime(df['timestamp'],unit='s')
+    df = df.set_index(ss)
+    df = df.sort_index(ascending=False)
     file_name = f'data_{int(time.time())}.parquet'
     try:
         # Save the parquet file somewhere
@@ -283,6 +292,7 @@ def get_latest_bar_v2(**kwargs):
     pandas.Dataframe
         contains >= 1 rows, depending on the provided limit
     """
+    # Limit is not the number of rows retuned back from database. It's the numerb of bars returned inside of 
     limit = kwargs.get('limit', 1) # if limit provided then it will be the number of rows returned back.
     if 'limit' in kwargs:
         del kwargs['limit']
@@ -292,8 +302,8 @@ def get_latest_bar_v2(**kwargs):
     if not result:
         raise LookupError(f"No data found. Params {kwargs}")
     df_data = pd.read_parquet(data['full_path'])
-    result = df_data.tail(limit)
-    df_data.drop(df_data.tail(limit).index, inplace=True)
+    result = df_data.tail(limit) 
+    df_data.drop(df_data.tail(1).index, inplace=True) # Pop only one bar
     _convert_to_pq_and_save(df_data, data['file_name'])
     return result
 
