@@ -1,4 +1,4 @@
-# Funhandl
+# Funhandler
 This is the general data handler for the funguana main trading bot
 
 Use to run through various events inside of the DB.
