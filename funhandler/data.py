@@ -50,6 +50,7 @@ def add_bars(data):
     # Start validation of incoming  data
 
     # 0. If data is None, return False
+    print("Adding data")
     if not data:
         return False
     # 1. Check if datatype of incoming data is list(dict)
@@ -73,6 +74,7 @@ def add_bars(data):
 
         # item['type'] = "price"
         # NOTE:
+
         # we can start processing and pulling data from funpicker at this
         # point. The question is: do we want to know if all dataset has valid
         # keys first or not?
@@ -86,7 +88,9 @@ def add_bars(data):
     # Get bars data from `funpicker`
     # Another question. Why do we need the timestamp?
     for item in data:
+        # print(item)
         result = _get_bars_data_from_funpicker(**item)
+        # print(result)
         if (isinstance(result, dict)
             and result.get('Response')
             and result['Response'] == 'Error'):

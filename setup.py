@@ -44,14 +44,14 @@ class UploadCommand(Command):
 
 setup(
     name="funhandler",
-    version="0.5",
+    version="0.5.1",
     author="Kevin Hill",
     author_email="kevin@funguana.com",
     description="The realtime processing library",
     long_description=long_description,
     long_description_content_type="text/markdown",
     py_modules=["funhandler"],
-    install_requires=['funpicker', 'funtime', 'apscheduler', 'funhouse', 'click', 'tornado', 'streamz_latest', 'dask', 'dask[complete]', 'crayons', 'cerberus', 'python-decouple', 'psycopg2'], 
+    install_requires=['funpicker', 'funtime', 'apscheduler', 'funhouse', 'click', 'tornado', 'streamz_latest', 'dask', 'dask[complete]', 'dask[dataframe]', 'pyarrow', 'fastparquet', 'crayons', 'cerberus', 'python-decouple', 'psycopg2'], 
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

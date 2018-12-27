@@ -10,6 +10,10 @@ dask = {extras = ["complete"], version = "*"}
 funtime = "==0.2.7"
 pyarrow = "*"
 streamz = "*"
+networkx = "*"
+streamz-latest = "*"
+distributed = "*"
+loguru = "*"
 
 [dev-packages]
 pylint = "*"

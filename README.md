@@ -90,3 +90,36 @@ Register Library Type
 
 [5 rows x 13 columns]
 ```
+
+
+## Session Object
+
+Upon reading the code for funhandler. We decided that the foundation of the code was perfect for our session store. The session store is the piece of code we use with strategies to handle outside information. This includes online learning/estimation algorithms, and constant data that needs to be called upon. It has many of the same calls the normal funhandler library has.
+
+```python
+sess = Session()
+sess.set_host('localhost')
+sess.set_store_name('test_store_name')
+sess.set_storage_model('local')
+sess.set_local_storage_info(base_path='/tmp', storage_folder='parquet_data')
+sess.initialize_database()
+
+
+
+# sess.load_bars({...})
+
+# while fh.is_still_bars(**unique_data):
+#     unique_data.update({'limit': 5})
+#     bars = fh.get_latest_bar_v2(**unique_data)
+#     print(bars)
+
+
+# Adding state information as well
+
+sess.add(CustomReinforcementAlgorithm())
+sess.add(CustomDispatcher())
+sess.add(CustomEstimatorCode())
+
+```
+
+

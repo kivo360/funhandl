@@ -1,23 +1,31 @@
-import random
-import uuid
-from time import sleep
-import threading
-import numpy as np
-from dask.distributed import Client, Lock
-from streamz import Stream
-from loguru import logger
-import pandas as pd
-from copy import deepcopy
-from tornado import gen
 import asyncio
+import random
+import sys
+import threading
+import uuid
+from copy import deepcopy
+from time import sleep
+
+import numpy as np
+import pandas as pd
+from dask.distributed import Client, Lock
+from loguru import logger
+from streamz import Stream
+from tornado import gen
+
 np.random.seed(2) 
 
 client = Client(processes=False)
 
+logger.remove()
+logger.add(sys.stdout, colorize=True, format="<green>{time}</green> <level>{message}</level>")
+# logger.add(sys.stderr, format="{time} {message}", filter="my_module", level="INFO")
+logger.add("file{time}.log", format="{time:YYYY-MM-DD at HH:mm:ss} | {level} | {message}")
+
 
 
 source = Stream()
-
+check_emission = Stream()
 class SerizableEvent(object):
 	def __init__(self):
 		pass
@@ -210,7 +218,7 @@ class SimulationController(object):
 		# print("Create simulations")
 		self.simulations = {}
 		# self.lock = Lock()
-
+		# We'd run through various sims with ray remote and store internally
 		episodes = kwargs.get("episodes", MAX_EPISODES)
 		for _ in range(episodes):
 			# These would be remotely accessible using ray
@@ -228,11 +236,11 @@ class SimulationController(object):
 		return self.simulations[_id].current_state()
 
 	def get_last(self, **kwargs):
-		
 		_id = kwargs.get("_id")
 		return self.simulations[_id].laststate
 	def info(self, _id):
-		return "Some info about the simulation"
+		counter = self.simulations[_id].step_counter
+		return "Simulation-ID: {}, Number Of Iterations: {}".format(_id, counter)
 
 	def step(self, **kwargs):
 		
@@ -275,30 +283,24 @@ def take_next(x):
 	return se
 
 def take_note(event):
-	logger.info(event)
-	# last_state = simmy.get_last(_id=event._id)
 	actor.learn(prev=event.last, current=event.current, reward=event.reward, done=event.done, _id=event._id)
 	return event
 
-# @gen.coroutine
 def is_done(s):
 
-	logger.info(s)
-	# s = await s
-	# yield s
-	logger.info("{} - {}".format(s.done, s._id), enqueue=True)
+	logger.info(simmy.info(s._id))
 	if s.done == False:
 		return True
 	else:
-		logger.info(simmy.info(s._id)) 
 		return False
 
 
-
+# @logger.catch
 def reemit(s):
 	# event = s.result()
 	source.emit(s._id)
 
+@logger.catch
 def main():
 	
 	sim_list = simmy.get_list_of_sims()
@@ -307,7 +309,14 @@ def main():
 		source.emit(_)
 
 
-source.scatter().map(take_next).map(take_note).buffer(20).gather().filter(is_done).sink(reemit)
+
+# I can instead package everything into a Session object and single stream everything.
+# Dask Distributed scheduler will be used inside of the session object.
+# count = 
+
+(source.map(take_next)
+		.map(take_note)
+		.filter(is_done).sink(reemit))
 
 if __name__ == "__main__":
 	main()
