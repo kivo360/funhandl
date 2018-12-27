@@ -41,15 +41,7 @@ async def execute():
             "exchange": "binance",
             "period": "minute",
             "timestamp": time_1,
-        },
-        {
-            "type": "price",
-            "base": "ETH",
-            "trade": "BTC",
-            "exchange": "binance",
-            "period": "minute",
-            "timestamp": time_2,
-        },
+        }
     ]
     client = await Client(processes=True, asynchronous=True)
     source = Stream(asynchronous=True)

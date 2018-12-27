@@ -14,19 +14,19 @@ time_2 = time.time()
 unique_data = [
     {
         "type": "price",
-        "base": "ETC",
-        "trade": "BTC",
+        "base": "BTC",
+        "trade": "ETC",
         "exchange": "binance",
         "period": "minute",
-        "timestamp": time_1,
+        # "timestamp": time_1,
     },
     {
         "type": "price",
-        "base": "ETH",
-        "trade": "BTC",
+        "base": "BTC",
+        "trade": "ETH",
         "exchange": "binance",
         "period": "minute",
-        "timestamp": time_2,
+        # "timestamp": time_2,
     },
 ]
 
