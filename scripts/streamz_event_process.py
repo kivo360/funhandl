@@ -5,7 +5,7 @@ import threading
 import uuid
 from copy import deepcopy
 from time import sleep
-
+from abc import ABC
 import numpy as np
 import pandas as pd
 from dask.distributed import Client, Lock
@@ -26,13 +26,25 @@ logger.add("file{time}.log", format="{time:YYYY-MM-DD at HH:mm:ss} | {level} | {
 
 source = Stream()
 check_emission = Stream()
-class SerizableEvent(object):
+class SerizableEvent(ABC):
 	def __init__(self):
 		pass
 	
 	def __setattr__(self, name, value):
 		self.__dict__[name] = value
 
+
+class LearningEvent(SerizableEvent):
+	def __init__(self, state, action, reward, result, done):
+		super().__init__()
+		self.__dict__ = {
+			"state": state,
+			"action": action, 
+			"reward": reward, 
+			"result": result, 
+			"done": done
+		}
+	
 
 
 # 1. Create sims (random list) with names
@@ -305,7 +317,6 @@ def main():
 	
 	sim_list = simmy.get_list_of_sims()
 	for _ in sim_list:
-		# print(_)
 		source.emit(_)
 
 
