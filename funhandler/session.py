@@ -1,47 +1,16 @@
 from abc import ABC
 import uuid
 import threading
+from loguru import logger
 from multiprocessing import Queue as MQueue
 from funhandler.state import MainState
+from funhandler.blocks import BaseBlock, StateBlock
 
-class Addable(ABC):
-    def __init__(self, name, type_name, **kwargs):
-        self.name = name
-        self.type_name = type_name
-        self.required = [] # Set a list of required types that need to be added
-        self.current_id = str(uuid.uuid4())
-
-    def __call__(self, **kwargs):
-        """ Will get all of the requirements of each object and try setting unfilled requirements from the main state"""
-        raise NotImplementedError
-
-    def execute(self):
-        # Run the execute when the run function is run for the session. 
-        raise NotImplementedError
-    
-    def check_required(self):
-        """ Checks for required objects. Usually understood by checking types """
-        raise NotImplementedError
-
-    def add_requirements(self, *args):
-        """ Checks for required objects. Usually understood by checking types """
-        raise NotImplementedError
-    
-    def start(self):
-        # Run the execute when the run function is run for the session. 
-        raise NotImplementedError
-
-    
-
-    def __repr__(self):
-        capname = self.type_name.capitalize()
-        return "<{0} 0x:{2} -- {1}>".format(capname, self.name, self.current_id)
-
-class SARSALearning(Addable):
+class Portfolio(BaseBlock):
     def __init__(self, name, **kwargs):
-        super().__init__(name, "reinforcement")
+        super().__init__(name, "portfolio")
         
-        self.required = ["modloader", "portfolio", "environment", "dispatch", "modstore"]
+        self.required = []
         self.task_parts = {}
         self.dsk = None
         self.check_required(kwargs)
@@ -52,12 +21,13 @@ class SARSALearning(Addable):
         # Define a task graph here
     
     def load_tasks(self):
-         self.dsk = {'load': (self.task_parts['modloader'].load), # Loads a model based on the name (agent)
-       'portfolio': (self.task_parts['portfolio'].load), # Loads a portfolio
-       'environment': (self.task_parts['environment'].load), # Loads a portfolio
-       'set': (self.set_env, 'load', 'portfolio', 'environment'), # create an object to step through
-       'step': (self.step, 'set'), # Gets the next_state, reward and determination if the process is done
-       'save-action-value': (self.task_parts['store'], 'step')}
+        logger.info("Portfolio Block")
+    #      self.dsk = {'load': (self.task_parts['modloader'].load), # Loads a model based on the name (agent)
+    #    'portfolio': (self.task_parts['portfolio'].load), # Loads a portfolio
+    #    'environment': (self.task_parts['environment'].load), # Loads a portfolio
+    #    'set': (self.set_env, 'load', 'portfolio', 'environment'), # create an object to step through
+    #    'step': (self.step, 'set'), # Gets the next_state, reward and determination if the process is done
+    #    'save-action-value': (self.task_parts['store'], 'step')}
     
     def check_required(self, kwds):
         kwkeys = kwds.keys()
@@ -68,20 +38,60 @@ class SARSALearning(Addable):
 
     def add_requirements(self, *args):
         for req in args:
-            if isinstance(req, Addable):
+            if isinstance(req, BaseBlock):
+                self.task_parts[req.type_name] = req
+
+    def set_env(self):
+        pass
+
+    def step(self, action, **kwargs):
+
+        # Run the execute when the run function is run for the session. 
+        print("Steping through the next")
+    
+    def reset(self):
+        logger.debug("Reinforcement started")
+
+class SARSALearning(BaseBlock):
+    def __init__(self, name, **kwargs):
+        super().__init__(name, "reinforcement")
+        
+        self.required = ["modloader", "portfolio", "environment", "dispatch", "modstore"]
+        self.task_parts = {}
+        self.dsk = None
+        self.check_required(kwargs)
+
+    
+    def load_tasks(self):
+        logger.success("Task loaded")
+    #      self.dsk = {'load': (self.task_parts['modloader'].load), # Loads a model based on the name (agent)
+    #    'portfolio': (self.task_parts['portfolio'].load), # Loads a portfolio
+    #    'environment': (self.task_parts['environment'].load), # Loads a portfolio
+    #    'set': (self.set_env, 'load', 'portfolio', 'environment'), # create an object to step through
+    #    'step': (self.step, 'set'), # Gets the next_state, reward and determination if the process is done
+    #    'save-action-value': (self.task_parts['store'], 'step')}
+    
+    def check_required(self, kwds):
+        kwkeys = kwds.keys()
+
+        for i in self.required:
+            if i not in kwkeys:
+                raise AttributeError("{} not found in {}".format(i, self.__repr__()))
+
+    def add_requirements(self, *args):
+        for req in args:
+            if isinstance(req, BaseBlock):
                 self.task_parts[req.type_name] = req
 
     def set_env(self, load, portfolio, environment):
         pass
 
-    def execute(self, **kwargs):
+    def step(self, **kwargs):
         # Run the execute when the run function is run for the session. 
         print("Steping through the next")
     
-    def start(self):
-        print("Reinforcement started")
-
-
+    def reset(self):
+        logger.info("Porfolio Added")
 
 class Session(object):
     def __init__(self, name, **kwargs):
@@ -107,33 +117,19 @@ class Session(object):
             self.queue = MQueue()
             self.thread = threading.Thread(target=self.queued_writer, daemon=True)
             self.thread.start()
-
-        
-        # print(locktype)
-        # if isdaskdist is False:
-        #     # Use to run the session with threads
-        #     self.lock = threading.Lock()
-        #     self.queue = MQueue()
-        # else:
-            
-        #     self.queue = DQueue('x')    
-        #     if client is None:
-        #         self.lock = Lock('x')
-        #     else:
-        #         self.lock = Lock('x', client=client)            
-        # Sets default variables based on what's necessary to generally operate
     
     def add_global_key(self, addable):
         global_keys = self.global_items.keys()
         addable_name = addable.type_name
         if addable_name not in global_keys:
             self.global_items[addable_name] = []
-        addable.start()
+        addable.reset()
         self.global_items[addable_name].append(addable)
+        
 
     def add(self, addable):
         # Sets an addable object. Checks to be an instance of Session/Executable.
-        if isinstance(addable, Addable):
+        if isinstance(addable, BaseBlock):
             self.add_global_key(addable)
     
     def queued_writer(self):
@@ -148,7 +144,6 @@ class Session(object):
 
                 if isinstance(message, dict) == False:
                     continue
-                
                 self.global_state.dispatch(**message)
         except Exception as e:
             print(str(e))
@@ -185,8 +180,6 @@ class Session(object):
                 # First check to see if the required are added there
                 # Some required items will have defaults in the session __init__
                 _.execute()
-                for i in range(40):
-                    self.send_msg({"index": i})
                 
 
                 
@@ -197,6 +190,7 @@ class Session(object):
 
 if __name__ == "__main__":
     sess = Session("blank", enqueue=True)
+    sess.add(PortfolioBlock("userportfolio"))
     # Allow us to __call__ to add default variables
     sess.add(SARSALearning("qlearning", modloader={}, portfolio={}, environment={}, dispatch={}, modstore={}))
     sess.run(type="reinforcement", name="qlearning", data={})

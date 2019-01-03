@@ -18,10 +18,20 @@ np.random.seed(2)
 client = Client(processes=False)
 
 logger.remove()
-logger.add(sys.stdout, colorize=True, format="<green>{time}</green> <level>{message}</level>")
+logger.add(sys.stdout, colorize=True, format="[<green>{time}</green>] <level>{message}</level>")
 # logger.add(sys.stderr, format="{time} {message}", filter="my_module", level="INFO")
 logger.add("file{time}.log", format="{time:YYYY-MM-DD at HH:mm:ss} | {level} | {message}")
 
+
+# TODO: Put the learning agents in ray remote
+# TODO: 
+
+
+"""
+	TODO: This will be the general todo list for handling the stream processing for the outside gradient system
+
+	NOTE: What are you-
+"""
 
 
 source = Stream()
@@ -34,16 +44,17 @@ class SerizableEvent(ABC):
 		self.__dict__[name] = value
 
 
+# We dispatch the event accordingly here
 class LearningEvent(SerizableEvent):
-	def __init__(self, state, action, reward, result, done):
+	def __init__(self, _id, state, action, reward, result, done):
 		super().__init__()
-		self.__dict__ = {
-			"state": state,
-			"action": action, 
-			"reward": reward, 
-			"result": result, 
-			"done": done
-		}
+		self._id = _id
+		self.last_state = state
+		self.action = action
+		self.reward = reward
+		self.result_state = result
+		self.done = done
+		
 	
 
 
@@ -119,61 +130,22 @@ class Actor(object):
 			action_name = np.random.choice(ACTIONS)
 		else:   # act greedy
 			action_name = state_actions.idxmax()    # replace argmax to idxmax as argmax means a different function in newer version of pandas
-		# logger.info(type(self.last_action))
-		# logger.info(type(str(_id)))
-		# self.last_action[str(_id)] = 0
-
 		self.last_action[_id] = action_name
-		# logger.info()
 		return action_name
-	
-	# def get_env_feedback(self, S, A):
-	# 	# This is how agent will interact with the environment
-	# 	if A == 'right':    # move right
-	# 		if S == N_STATES - 2:   # terminate
-	# 			S_ = 'terminal'
-	# 			R = 1
-	# 		else:
-	# 			S_ = S + 1
-	# 			R = 0
-	# 	else:   # move left
-	# 		R = 0
-	# 		if S == 0:
-	# 			S_ = S  # reach the wall
-	# 		else:
-	# 			S_ = S - 1
-	# 	return S_, R
-
-
-
-
-		# print(table)    # show table
-
 class Simulation(object):
-	def __init__(self):
+	def __init__(self, episode_num):
 		# The simulation is a lot like an environment. Load the episodes for the enviornment
 		self.episodes = list(np.random.uniform(low=0.5, high=13.3, size=70))
 		self.S = 0
 		self.laststate = 0
-		self._id = str(uuid.uuid1())
+		self._id = str(uuid.uuid4())
 		self.current = None
 		self.total_state = []
 		self.step_counter = 0
+		self.episode_num = episode_num
 
 
 		self.env_list = ['-']*(N_STATES-1) + ['T']   # '---------T' our environment
-		
-		# if S == 'terminal':
-		# 	interaction = 'Episode %s: total_steps = %s' % (episode+1, step_counter)
-		# 	print('\r{}'.format(interaction), end='')
-		# 	time.sleep(2)
-		# 	print('\r                                ', end='')
-		# else:
-		# 	env_list[S] = 'o'
-		# 	interaction = ''.join(env_list)
-		# 	print('\r{}'.format(interaction), end='')
-		# 	time.sleep(FRESH_TIME)
-
 
 	def current_state(self):
 		return self.S
@@ -181,8 +153,6 @@ class Simulation(object):
 	def step(self, action, **kwargs):
 		# We'd run through every part of the process here
 		# For agent based modeling the components would be here
-		# self.current = self.episodes.pop()
-		# processed = self.current
 		self.laststate = deepcopy(self.S)
 		action = str(action).upper()
 		done = False
@@ -200,22 +170,6 @@ class Simulation(object):
 				self.S = self.S  # reach the wall
 			else:
 				self.S -= self.S
-		# return S_, R
-
-		# if action == "LEFT":
-		# 	# processed = self.current*2
-		# 	logger.info("Applying Left", enqueue=True)
-		# elif action == "RIGHT":
-		# 	# processed = self.current*15
-		# 	logger.info("Applying Right", enqueue=True)
-		
-
-		# self.total_state.append(processed)
-		# # print("Doing processing here: {}".format(self.current))
-
-		# done = False
-		# if len(self.episodes) == 0:
-		# 	done = True
 		
 		self.step_counter += 1
 		# logger.info(self.step_counter)
@@ -227,14 +181,12 @@ class Simulation(object):
 
 class SimulationController(object):
 	def __init__(self, **kwargs):
-		# print("Create simulations")
 		self.simulations = {}
-		# self.lock = Lock()
 		# We'd run through various sims with ray remote and store internally
 		episodes = kwargs.get("episodes", MAX_EPISODES)
 		for _ in range(episodes):
 			# These would be remotely accessible using ray
-			sim = Simulation()
+			sim = Simulation(_)
 			self.simulations[sim._id] = sim
 	
 	
@@ -251,8 +203,10 @@ class SimulationController(object):
 		_id = kwargs.get("_id")
 		return self.simulations[_id].laststate
 	def info(self, _id):
-		counter = self.simulations[_id].step_counter
-		return "Simulation-ID: {}, Number Of Iterations: {}".format(_id, counter)
+		sim = self.simulations[_id]
+		counter = sim.step_counter
+		episode = sim.episode_num
+		return "Simulation-ID: {}, Number Of Iterations: {}, Episode#: {},".format(_id, counter, episode)
 
 	def step(self, **kwargs):
 		
@@ -285,21 +239,14 @@ def take_next(x):
 	action = actor.decide(current_state, x)
 	# action = actor.decide(current_state)
 	last, current, reward, done = simmy.step(_id=x, action=action)
-	se = SerizableEvent()
-	se.reward = reward
-	se.last = last
-	se.current = current
-	se.done = done
-	se._id = x
-	se.current = current
+	se = LearningEvent(x, last, action, reward, current, done)
 	return se
 
 def take_note(event):
-	actor.learn(prev=event.last, current=event.current, reward=event.reward, done=event.done, _id=event._id)
+	actor.learn(_id=event._id, prev=event.last_state, current=event.result_state, reward=event.reward, done=event.done)
 	return event
 
 def is_done(s):
-
 	logger.info(simmy.info(s._id))
 	if s.done == False:
 		return True
@@ -307,14 +254,11 @@ def is_done(s):
 		return False
 
 
-# @logger.catch
 def reemit(s):
-	# event = s.result()
 	source.emit(s._id)
 
 @logger.catch
-def main():
-	
+def main():	
 	sim_list = simmy.get_list_of_sims()
 	for _ in sim_list:
 		source.emit(_)
@@ -323,8 +267,8 @@ def main():
 
 # I can instead package everything into a Session object and single stream everything.
 # Dask Distributed scheduler will be used inside of the session object.
-# count = 
-
+# We could include a script that would hold create a list of available processes instead. 
+# That way we would achieve multiprocessing, while also avoiding dask's scheduling.
 (source.map(take_next)
 		.map(take_note)
 		.filter(is_done).sink(reemit))
