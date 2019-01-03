@@ -1,6 +1,15 @@
 # Funhandler
 This is the general data handler for the funguana main trading bot.
 
+TODO: Transition to a Gym-like environment.
+
+```python
+    bars, done = env.step(action=action, selector=selection)
+    
+    process_bars(bars, dispatcher=dispatcher)
+```
+
+
 ## Requirements
 - pandas
 - funtime
