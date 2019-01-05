@@ -21,9 +21,6 @@ class BaseBlock(ABC):
         """ Will get all of the requirements of each object and try setting unfilled requirements from the main state"""
         raise NotImplementedError
 
-    def step(self, action, **kwargs):
-        # Run the execute when the run function is run for the session. 
-        raise NotImplementedError
     
     def check_required(self):
         """ Checks for required objects. Usually understood by checking types """
@@ -37,6 +34,9 @@ class BaseBlock(ABC):
         # Run the execute when the run function is run for the session. 
         raise NotImplementedError
 
+    def step(self, action, **kwargs):
+        # Run the execute when the run function is run for the session. 
+        raise NotImplementedError
     
 
     def __repr__(self):
@@ -121,7 +121,55 @@ class ActionBlock(ABC):
     def __repr__(self):
         capname = self.type_name.capitalize()
         return "<{0} 0x:{2} -- {1}>".format(capname, self.name, self.current_id)
+
+class InfoBlock(ABC):
+    """
+        This block is used to add default information to the sessions object.
+
+        Example: PortfolioBacktest() - Will add the following:
+            - Portfolio
+            - Object Store
+            - PortfolioEnvironment
+            - Estimators
+        
+        Those objects, with default values, will be added to the session at runtime
+    """
+    def __init__(self, name, type_name, **kwargs):
+        self.name = name
+        self.type_name = type_name
+        self.required = [] # Set a list of required types that need to be added
+        self.current_id = str(uuid.uuid4())
+
+    def __call__(self, **kwargs):
+        """ Will get all of the requirements of each object and try setting unfilled requirements from the main state"""
+        raise NotImplementedError
+
     
+    def check_required(self):
+        """ Checks for required objects. Usually understood by checking types """
+        raise NotImplementedError
+
+    def add_requirements(self, *args):
+        """ Checks for required objects. Usually understood by checking types """
+        raise NotImplementedError
+    
+
+
+    def action_filter(self):
+        raise NotImplementedError
+    
+    def reset(self):
+        # Run the execute when the run function is run for the session. 
+        raise NotImplementedError
+
+    def step(self, action, **kwargs):
+        # Run the execute when the run function is run for the session. 
+        raise NotImplementedError
+    
+
+    def __repr__(self):
+        capname = self.type_name.capitalize()
+        return "<{0} 0x:{2} -- {1}>".format(capname, self.name, self.current_id)
 
 """
     Action Block:

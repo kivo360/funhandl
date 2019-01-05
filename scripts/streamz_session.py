@@ -13,6 +13,9 @@ from loguru import logger
 from streamz import Stream
 from tornado import gen
 
+
+from funhandler.session import Session, SARSALearning
+
 np.random.seed(2) 
 
 client = Client(processes=False)
@@ -222,12 +225,14 @@ class SimulationController(object):
 		return last, current, reward, done
 	
 
-	
+
+
 
 
 simmy = SimulationController(episodes=10)
 actor = Actor()
-
+session = Session("livebot")
+session.add(SARSALearning("penisface"))
 
 
 	
@@ -257,11 +262,25 @@ def is_done(s):
 def reemit(s):
 	source.emit(s._id)
 
+def step(x,**kwargs):
+	# print(kwargs)
+	sess = kwargs.get("sess")
+	kw = {
+		"type": "reinforcement",
+		"data": {}
+	}
+	sess.step(**kw)
+	return sess
+
 @logger.catch
 def main():	
-	sim_list = simmy.get_list_of_sims()
-	for _ in sim_list:
-		source.emit(_)
+	for i in range(10):
+		source.emit(i)
+	# sim_list = simmy.get_list_of_sims()
+	# for _ in sim_list:
+	# 	source.emit(_)
+
+
 
 
 
@@ -269,9 +288,8 @@ def main():
 # Dask Distributed scheduler will be used inside of the session object.
 # We could include a script that would hold create a list of available processes instead. 
 # That way we would achieve multiprocessing, while also avoiding dask's scheduling.
-(source.map(take_next)
-		.map(take_note)
-		.filter(is_done).sink(reemit))
+(source.map(step, sess=session)
+		.sink(print))
 
 if __name__ == "__main__":
 	main()
