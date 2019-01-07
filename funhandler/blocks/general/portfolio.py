@@ -8,24 +8,35 @@ from funhandler.blocks.general.performance import (create_drawdowns,
                                                    create_sharpe_ratio)
 from funhandler.blocks import BaseBlock
 
-
+# TODO: Add a state "converter" to get a vectorize version of the current state
+# TODO: Also add a reward vector to let the environment determine what's considered "good"
 class Portfolio(BaseBlock):
     def __init__(self, name, **kwargs):
-        super().__init__(name, "portfolio_machine")
-        self.required = []
+        super().__init__(name, "portfolio")
+        self.required = ["store"]
         self.task_parts = {}
         self.dsk = None
-        self.check_required(kwargs)
+        
         """Use portfolio to add/remove holdings"""
-        pass
+        logger.opt(ansi=True).info("Initializing <i>Portfolio</i>")
+        store = kwargs.get("store", None)
+        if store is not None:
+            self.task_parts["store"] = store
+        
 
-    def check_required(self, kwds):
-        kwkeys = kwds.keys()
+    def check_required(self):
+        kwkeys = self.task_parts.keys()
 
         for i in self.required:
             if i not in kwkeys:
                 msg = "{} not found in {}".format(i, self.__repr__())
                 raise AttributeError(msg)
+
+    def add_task_parts(self, parts):
+        if isinstance(parts, dict):
+            # print(parts_dict)
+            total = {**self.task_parts, **parts}
+            self.task_parts = total
 
     def reset(self):
         self.cash = 100000
@@ -43,12 +54,14 @@ class Portfolio(BaseBlock):
         }
         self.pct_cash = 0.4 # Meaning I want at least 40% cash
         self.latest_price = 0
+        self.check_required()
+        logger.opt(ansi=True).info("<m>Portfolio Initiated</m> Cash: <g>{}</g> Minimum pct cash: {}", self.cash, round(self.pct_cash, 3))
 
     def step(self, action, **kwargs):
-        logger.info("This is usually an order")
-        logger.info("run an order")
-        logger.info("log the general value")
-        logger.info("Run stats to determine the strength of the system")
+        logger.opt(ansi=True).info("This is usually an order")
+        logger.opt(ansi=True).info("run an order")
+        logger.opt(ansi=True).info("log the general value")
+        logger.opt(ansi=True).info("Run stats to determine the strength of the system")
 
     def set_price(self, latest):
         self.latest_price = latest
@@ -160,7 +173,7 @@ class Portfolio(BaseBlock):
                 if is_little:
                     # print(cy.yellow(amt, bold=True))
                     return True, amt
-                print(cy.blue("Not enough to currently trade"))
+                logger.opt(ansi=True).debug("Not enough to currently trade")
                 return False, 0
             # Check to see if we can actually buy the amount avaiable
             # If the shares is negative after cant do it
@@ -346,7 +359,7 @@ class Portfolio(BaseBlock):
                 if self.share_balance is not 0:
                     self.shares_pct[sym] = ((self.shares[sym]/self.share_balance) * 100)
         except ZeroDivisionError:
-            print("FUCK ZERO DA NUMBA. WE GOOCHIE SON")
+            logger.opt(ansi=True).exception("You just divided by zero <r>[0, ZEEERO, 0z, _, ...,    ]</r> bro. It's all good though. Shit happens: ¯\_(ツ)_/¯")
             
                    
     def performance(self):

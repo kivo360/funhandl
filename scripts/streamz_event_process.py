@@ -8,14 +8,15 @@ from time import sleep
 from abc import ABC
 import numpy as np
 import pandas as pd
-from dask.distributed import Client, Lock
+# from dask.distributed import Client, Lock
+# from distributed.client import default_client
 from loguru import logger
 from streamz import Stream
 from tornado import gen
 
-np.random.seed(2) 
+np.random.seed(2)
 
-client = Client(processes=False)
+# client = Client(processes=False)
 
 logger.remove()
 logger.add(sys.stdout, colorize=True, format="[<green>{time}</green>] <level>{message}</level>")
@@ -24,7 +25,7 @@ logger.add(sys.stdout, colorize=True, format="[<green>{time}</green>] <level>{me
 
 
 # TODO: Put the learning agents in ray remote
-# TODO: 
+# TODO:
 
 
 """
@@ -34,12 +35,12 @@ logger.add(sys.stdout, colorize=True, format="[<green>{time}</green>] <level>{me
 """
 
 
-source = Stream()
+source = Stream(asynchronous=True)
 check_emission = Stream()
 class SerizableEvent(ABC):
 	def __init__(self):
 		pass
-	
+
 	def __setattr__(self, name, value):
 		self.__dict__[name] = value
 
@@ -54,8 +55,8 @@ class LearningEvent(SerizableEvent):
 		self.reward = reward
 		self.result_state = result
 		self.done = done
-		
-	
+
+
 
 
 # 1. Create sims (random list) with names
@@ -88,7 +89,7 @@ class Actor(object):
 		# self.gamma = reward_decay
 		# self.epsilon = e_greedy
 		self.build_q_table(N_STATES, ACTIONS)
-		
+
 
 	def build_q_table(self, n_states, actions):
 		table = pd.DataFrame(
@@ -96,7 +97,7 @@ class Actor(object):
 			columns=actions,    # actions's name
 		)
 		self.table = table
-	
+
 	def learn(self, **kwargs):
 		_id = kwargs.get("_id", None)
 		previous = kwargs.get("prev", None)
@@ -105,7 +106,7 @@ class Actor(object):
 		is_done = kwargs.get("done", False)
 
 		# is_done = kwargs.get("done", None)
-		
+
 		try:
 			self.last_action[_id]
 		except KeyError:
@@ -160,7 +161,7 @@ class Simulation(object):
 		# We try sending in a new state
 		if action == 'RIGHT':    # move right
 			if self.S == N_STATES - 2:   # terminate
-				done = True				
+				done = True
 				reward = 1
 			else:
 				self.S += 1
@@ -170,7 +171,7 @@ class Simulation(object):
 				self.S = self.S  # reach the wall
 			else:
 				self.S -= self.S
-		
+
 		self.step_counter += 1
 		# logger.info(self.step_counter)
 		# logger.info(self.total_state)
@@ -188,9 +189,9 @@ class SimulationController(object):
 			# These would be remotely accessible using ray
 			sim = Simulation(_)
 			self.simulations[sim._id] = sim
-	
-	
-	
+
+
+
 	def get_list_of_sims(self):
 		""" """
 		return self.simulations.keys()
@@ -209,20 +210,20 @@ class SimulationController(object):
 		return "Simulation-ID: {}, Number Of Iterations: {}, Episode#: {},".format(_id, counter, episode)
 
 	def step(self, **kwargs):
-		
+
 		_id = kwargs.get("_id", None)
 		action = kwargs.get("action", None)
 
 		if _id is None:
 			raise AttributeError("Id not found")
-		
+
 		last, current, reward, done = self.simulations[_id].step(action)
 		# Maybe push the learning to another step
 		# actor.learn(prev=self.simulations[_id].laststate, current=self.simulations[_id].current_state(), done=done)
 		return last, current, reward, done
-	
 
-	
+
+
 
 
 simmy = SimulationController(episodes=10)
@@ -230,10 +231,11 @@ actor = Actor()
 
 
 
-	
-
-
+@gen.coroutine
 def take_next(x):
+	# cli = default_client()
+	# logger.success(cli)
+	# client.submit(simmy.get_current, _id=x)
 	# Get the current state of a simulation by ID
 	current_state = simmy.get_current(_id=x)
 	action = actor.decide(current_state, x)
@@ -242,36 +244,46 @@ def take_next(x):
 	se = LearningEvent(x, last, action, reward, current, done)
 	return se
 
-def take_note(event):
+@gen.coroutine
+def take_note(_event):
+	event = yield _event
 	actor.learn(_id=event._id, prev=event.last_state, current=event.result_state, reward=event.reward, done=event.done)
 	return event
 
-def is_done(s):
+@gen.coroutine
+def is_done(_s):
+	s = yield _s
 	logger.info(simmy.info(s._id))
 	if s.done == False:
 		return True
 	else:
 		return False
 
+@gen.coroutine
+def reemit(_s):
+	# print(_s)
+	s = yield _s
+	# logger.info(s)
+	# Should emit to a kombu queue instead. It would simplify everything. Would also still allow the system to run extremely in parallel.
+	check_emission.emit(s._id)
 
-def reemit(s):
-	source.emit(s._id)
 
-@logger.catch
-def main():	
+def main():
 	sim_list = simmy.get_list_of_sims()
 	for _ in sim_list:
+		# Should emit to kombu here
+		# TODO: Create a wrapper to send a message to kombu, then ack that message directly after it's read. (for solidity's sake)
 		source.emit(_)
 
 
 
 # I can instead package everything into a Session object and single stream everything.
 # Dask Distributed scheduler will be used inside of the session object.
-# We could include a script that would hold create a list of available processes instead. 
+# We could include a script that would hold create a list of available processes instead.
 # That way we would achieve multiprocessing, while also avoiding dask's scheduling.
-(source.map(take_next)
-		.map(take_note)
-		.filter(is_done).sink(reemit))
+# (source.map(take_next)
+# 		.map(take_note).filter(is_done).sink(reemit))
+# (check_emission.sink(print))
 
 if __name__ == "__main__":
 	main()

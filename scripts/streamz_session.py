@@ -9,6 +9,7 @@ from abc import ABC
 import numpy as np
 import pandas as pd
 from dask.distributed import Client, Lock
+
 from loguru import logger
 from streamz import Stream
 from tornado import gen

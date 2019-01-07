@@ -1,100 +1,14 @@
 from abc import ABC
 import uuid
 import threading
+import ray
 from loguru import logger
 from multiprocessing import Queue as MQueue
 from funhandler.state import MainState
-from funhandler.blocks import BaseBlock, StateBlock, Portfolio
+from funhandler.blocks import BaseBlock, StateBlock, Portfolio, Addable, MrayStorage
+from funhandler.blocks.environments.trading import TradingEnvBuilder 
 
 
-# class Portfolio(BaseBlock):
-#     def __init__(self, name, **kwargs):
-#         super().__init__(name, "portfolio")
-        
-#         self.required = []
-#         self.task_parts = {}
-#         self.dsk = None
-#         self.check_required(kwargs)
-#         # Loads the model.
-       
-#         # portfolio is a portfolio manager object. Used to scale pushing information between various portfolios
-#         # a dispatch is something like a print or push to an outside location
-#         # Define a task graph here
-    
-#     def load_tasks(self):
-#         logger.info("Portfolio Block")
-#     #      self.dsk = {'load': (self.task_parts['modloader'].load), # Loads a model based on the name (agent)
-#     #    'portfolio': (self.task_parts['portfolio'].load), # Loads a portfolio
-#     #    'environment': (self.task_parts['environment'].load), # Loads a portfolio
-#     #    'set': (self.set_env, 'load', 'portfolio', 'environment'), # create an object to step through
-#     #    'step': (self.step, 'set'), # Gets the next_state, reward and determination if the process is done
-#     #    'save-action-value': (self.task_parts['store'], 'step')}
-    
-#     def check_required(self, kwds):
-#         kwkeys = kwds.keys()
-
-#         for i in self.required:
-#             if i not in kwkeys:
-#                 msg = "{} not found in {}".format(i, self.__repr__())
-#                 raise AttributeError(msg)
-
-#     def add_requirements(self, *args):
-#         for req in args:
-#             if isinstance(req, BaseBlock):
-#                 self.task_parts[req.type_name] = req
-
-#     def set_env(self):
-#         pass
-
-#     def step(self, action, **kwargs):
-
-#         # Run the execute when the run function is run for the session. 
-#         print("Steping through the next")
-    
-#     def reset(self):
-#         logger.debug("Reinforcement started")
-
-# class SARSALearning(BaseBlock):
-#     def __init__(self, name, **kwargs):
-#         super().__init__(name, "reinforcement")
-#         # "modloader", "portfolio", "environment", "dispatch", "modstore"
-#         self.required = []
-#         self.task_parts = {}
-#         self.dsk = None
-#         self.check_required(kwargs)
-
-    
-#     def load_tasks(self):
-#         logger.success("Task loaded")
-#     #      self.dsk = {'load': (self.task_parts['modloader'].load), # Loads a model based on the name (agent)
-#     #    'portfolio': (self.task_parts['portfolio'].load), # Loads a portfolio
-#     #    'environment': (self.task_parts['environment'].load), # Loads a portfolio
-#     #    'set': (self.set_env, 'load', 'portfolio', 'environment'), # create an object to step through
-#     #    'step': (self.step, 'set'), # Gets the next_state, reward and determination if the process is done
-#     #    'save-action-value': (self.task_parts['store'], 'step')}
-    
-#     def check_required(self, kwds):
-#         kwkeys = kwds.keys()
-
-#         for i in self.required:
-#             if i not in kwkeys:
-#                 msg = "{} not found in {}".format(i, self.__repr__())
-#                 raise AttributeError(msg)
-
-#     def add_requirements(self, *args):
-#         for req in args:
-#             if isinstance(req, BaseBlock):
-#                 self.task_parts[req.type_name] = req
-
-#     def set_env(self, load, portfolio, environment):
-#         pass
-
-#     def step(self, **kwargs):
-#         # Run the execute when the run function is run for the session. 
-#         print("Steping through the next")
-    
-#     def reset(self):
-#         logger.info("Porfolio Added")
 
 class Session(object):
     def __init__(self, name, **kwargs):
@@ -107,19 +21,8 @@ class Session(object):
         self.name = name
         self.lock = None
         self.global_items = {}
-        self.thread = None
-        self.queue = None
-        self.global_state = MainState()
 
-        self.locktype = kwargs.get("ltype", "thread")
-        self.enqueue = kwargs.get("enqueue", False)
-        if self.locktype is "thread":
-            self.lock = threading.Lock()
-        
-        if self.enqueue is True:
-            self.queue = MQueue()
-            self.thread = threading.Thread(target=self.queued_writer, daemon=True)
-            self.thread.start()
+        logger.opt(ansi=True).info("Starting session store <r>{}</r>", self.name)
     
     def add_global_key(self, addable):
         global_keys = self.global_items.keys()
@@ -132,103 +35,191 @@ class Session(object):
 
     def add(self, addable):
         # Sets an addable object. Checks to be an instance of Session/Executable.
-        if isinstance(addable, BaseBlock):
+        if isinstance(addable, Addable):
             self.add_global_key(addable)
+        else:
+            logger.error("Not addable")
     
     def reset(self, **kwargs):
         """Resets a current object"""
-        _type = kwargs.get("type")
+        _type = kwargs.get("type", "all")
+        
+        logger.opt(ansi=True).info("<r>Resetting</r> the <c>session</c> <g>store</g>")
+        global_keys = list(self.global_items.keys())
         if _type == "all":
             """ Reset everything. Should be used prior to running through simulations. """
-            logger.info("Resetting everything")
+            logger.opt(ansi=True).info("<y>Resetting everything</y>")
+            logger.info(global_keys)
+            for i in global_keys :
+                items = self.global_items[i]
+                for index, _ in enumerate(items):
+                    if len(_.required) > 0:
+                        e = self.get_requirement(_)
+                        # logger.debug(e)
+                        self.global_items[i][index].add_task_parts(e)
+                    self.global_items[i][index].reset()
+                    # _.reset()
+            
         else:
-            global_keys = self.global_items.keys()
+            logger.info(global_keys)
             if _type not in global_keys:
                 msg = "`{}` was not found".format(_type)
                 raise AttributeError(msg)
     
-    def queued_writer(self):
-        message = None
-        queue = self.queue
-
-        try:
-            while True:
-                message = queue.get()
-                if message is None:
-                    break
-
-                if isinstance(message, dict) == False:
-                    continue
-                self.global_state.dispatch(**message)
-        except Exception as e:
-            print(str(e))
-    def stop(self):
-        with self.lock:
-            if self.enqueue:
-                self.queue.put(None)
-                self.thread.join()
-    
-    def send_msg(self, msg):
-        if isinstance(msg, dict):
-            with self.lock:
-                if self.enqueue:
-                    self.queue.put(msg)
+    def get_requirement(self, obj):
+        logger.opt(ansi=True).debug(obj)
+        global_keys = list(self.global_items.keys())
+        o = {}
+        for req in obj.required:
+            if req in global_keys:
+                o[req] = self.global_items[req][0]
+        return o
+        
 
 
-    def step(self, **kwargs):
+
+    def step(self, action, **kwargs):
         """
 
         """
-        type_name = kwargs.get("type", None)
+        _type = kwargs.get("type", None)
         observation = 0
         reward = 0
         done = False
         info = {}
         name = kwargs.get("name", None)
         data = kwargs.get("data", None)
-        if type_name is None:
-            raise AttributeError("'type' not added. Used to locate what kind of object we'd like to step through.")
-        # if data is None:
-        #     raise AttributeError("No data supplied. Please supply data to run this process.")
+        logger.opt(ansi=True).info("<c>{}</c> action",action)
+
+
+        if _type is None:
+            raise AttributeError(" 'type' not added. Used to locate what kind of object we'd like to step through.")
         
-        # if type_name not in self.global_items.keys():
-        #     raise AttributeError("Type doesn't exist")
+        search_name = False
         
-        # else:
-        #     # Run the task graph here using the scheduler
-        #     for _ in self.global_items[type_name]:
-        #         # First check to see if the required are added there
-        #         # Some required items will have defaults in the session __init__
-        #         _.step()
+        if name is not None:
+            logger.opt(ansi=True).info("Stepping with both type: <m>{}</m> and name: <g>{}</g>", _type, name)
+            search_name = True
+        else:
+            logger.opt(ansi=True).info("Only stepping with type: <m>{}</m>", _type, name)
+        
+        
+        if data is None:
+            raise AttributeError("No data supplied. Please supply data to run this process.")
+        
+        if _type not in self.global_items.keys():
+            raise AttributeError("Type doesn't exist in the global keys")
+        
+
+        if search_name is True:
+
+            _type_list = self.global_items[_type]
+            tlist = [x.name for x in _type_list]
+            if name not in tlist:
+                msg = "{} not in {} list".format(name, _type)
+                raise AttributeError(msg)
+            else:
+                for item in self.global_items[_type]:
+                    if item.name == name:
+                        logger.info(item.step(action, **data))
+        else:
+            for item in self.global_items[_type]:
+                logger.debug(item.step(action, **data))
         return observation, reward, done, info
                 
 
                 
     
 
-# Example: Reinforcement Learning
 
 
 if __name__ == "__main__":
-    sess = Session("blank", enqueue=True)
+    sess = Session("blank", live=False, training=True) # if it's a training system, it's reasonable to begin reasoning that we'll be training here
+    sess.add(MrayStorage("blank"))
     sess.add(Portfolio("userportfolio"))
-    # Allow us to __call__ to add default variables
-    # sess.add(SARSALearning("qlearning", modloader={}, portfolio={}, environment={}, dispatch={}, modstore={}))
-    sess.step(type="portfolio")
-    sess.step()
-    sess.stop()
+    sess.add(TradingEnvBuilder("tradeenv"))
+    # TODO: Add reinforcement learning
+    # TODO: Add a runner function here to both run through generators and various portfolios 
+    sess.reset()
 
 
+    # NOTE: We would place this into the strategy class. We'll call the reinforcement learning algo here 
+    sess.step("Fuck You", type="environment", data={})
+    # sess.reset(type="all")
+    # for _ in range(100):
+    #     sess.step("BUY", type="portfolio", name="userportfolio", data={})
+    # sess.stop()
+
+
+
+
+    """
+        # Running a Q Learning Agent On a Portfolio
+        ---
+        
+        Steps:
+            1. Add the world
+            2. Add Storage Option (ray and funtime for now)
+            3. Add the environment
+            4. Run through setup
+            5. Add LearningAgent(s)
+            6. Run second setup (to ensure the agents know how to act (action/observation spacing))
+
+            ---
+
+        Pseudo-Code:
+            session = Session("environment-world", save=True)
+            session.add(BarFeed(...))
+            session.add(MrayStorage(unique_id=True)) # mongo ray storage
+            session.add(Portfolio("portfolio-name"))
+            session.add(TradingEnvBuilder("portfolio-specific"))
+            session.add(SARSAAgent(), amount=3)
+            session.reset() # reset does graph configuration. Task dependency setup using available data
+            emission_list = session.emission_list() # gets the appropiate selectors to emit data in series
+
+            # Example Emission Item Inside of Emission List (for trading):
+            {
+                "type": "train",
+                "data": {
+                    "model": {
+                        "pairs": ["BTC_ETH", "USD_ETH"],
+                        "portfolio": True
+                    }
+                    "agents": {
+                        "type": "SARSA"
+                    }
+                }
+
+            }
+
+            # How training will work
+            
+            # Declare a strategy
+            strategy = Strategy(sess=session)
+            strategy.add(Indicator1(**indicator_params))
+            strategy.add(Indicator2(**indicator_params))
+            strategy.add(Indicator3(**indicator_params))
+            for eitem in emission_list:
+                strategy.step(eitem) # The strategy will get the necessary data (if compatible), preprocess, then step through the given session
+
+
+
+            source = Stream()
+            source.map(step_session).filter(is_done).sink(reemit)
+
+            def main():
+                for eitem in emission_list:
+                    source.emit(eitem)
+    """
+
+
+    """
+        How we'll organize the session steps:
+            1. We use a task graph
+            2. We determine the order of the task graph when we call session.reset()
+            3. Every `step()` we run through the entire dask task graph
+            4. At the end, we call the output.
+                - This should be a dictionary explaining everything: Observarion, State, Done, etc
+    """
     # Tests to run
     # Can I push an action to modify a state
-
-"""
-# The run here would represent the
-sess.run(name="qlearning", type="reinforcement", data={"action": 1, dataframe: df})
-"""
-
-
-"""
-sess = Session("t1")
-sess.add(ReinforcementLearning())
-"""
