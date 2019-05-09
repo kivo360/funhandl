@@ -1,4 +1,7 @@
 import sys
+import uuid
+import random
+
 from distributed.worker import thread_state
 from funtime import Store, Converter
 # this is a pointer to the module object instance itself.
@@ -42,6 +45,36 @@ def set_file_storage(source='local', **kwargs):
         Contains data to setup S3 storage
     """
     pass
+
+
+# class Handler(object):
+#     def __init__(self):
+#         pass
+
+#     def generate_stochastic_episodes(self, 
+#                                     episode_number=10, 
+#                                     types_per_episode=['gbm', 'jump_diff'], 
+#                                     number_per_episode=10000):
+#         """ Generate a local set of stochastic episodes """
+#         pass
+
+#     def get_episodes(self):
+#         return []
+
+
+#     def pop_session(episode_id=None):
+#         return []
+    
+#     def is_sessions(self, episode_id):
+#         return True
+
+#     def is_session(self, session_id):
+#         return True
+    
+#     def pop_data(self, session_id):
+#         return random.randint(1, 100)
+
+    
 
 
 # TODO: Set storage location eventually too for the parkquet file

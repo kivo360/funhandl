@@ -7,7 +7,6 @@ name = "pypi"
 asyncio = "*"
 funhandler = {editable = true, path = "."}
 dask = {extras = ["complete"], version = "*"}
-funtime = "==0.2.7"
 pyarrow = "*"
 streamz = "*"
 networkx = "*"
@@ -17,6 +16,7 @@ loguru = "*"
 ray = "*"
 flask = "*"
 sanic = "*"
+funtime = "*"
 
 [dev-packages]
 pylint = "*"

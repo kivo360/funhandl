@@ -17,15 +17,15 @@ def set_storage_model(model_type, **model_info):
     this.current_storage_type = model_type
 
 def set_local_storage_info(**kwargs):
-    """ Set configs for local file storage
-        Should set a storage_folder inside of the system
-        Should set a base_path
+    """ 
+        Set configs for local file storage
+            Should set a storage_folder inside of the system
+            Should set a base_path
 
-    storage_folder: str
-        Name of the folder where all the files will be stored
-    base_path: str
-        Absolute path to the folder
-
+        storage_folder: str
+            Name of the folder where all the files will be stored
+        base_path: str
+            Absolute path to the folder
     """
     storage_folder = kwargs.get('storage_folder', None)
     base_path = kwargs.get('base_path', None)

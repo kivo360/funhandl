@@ -44,10 +44,10 @@ class UploadCommand(Command):
 
 setup(
     name="funhandler",
-    version="0.5.1",
+    version="0.6.1",
     author="Kevin Hill",
     author_email="kevin@funguana.com",
-    description="The realtime processing library",
+    description="Data handling library for forward testing",
     long_description=long_description,
     long_description_content_type="text/markdown",
     py_modules=["funhandler"],

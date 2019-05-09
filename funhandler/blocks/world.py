@@ -8,14 +8,18 @@ class Action(object):
         self.s = None # Support/Unsupport
         self.g = None # The ability to grow the supply of a the coin (with limits)
 
+
 class Entitiy(object):
     def __init__(self):
         self.state = None
+
 
 class Property(object):
     def __init__(self):
         pass
     
+
+# What international-banking like behavior can we build to make global warming production
 
 
 class Agent(Entitiy):
@@ -52,18 +56,23 @@ class World(object):
             "bank_num": 0
         }
     
+
     @property
     def entities(self):
         return self.agents
+
+
     @property
     def policy_agents(self):
         return [x for x in self.agents if x.action_space is not None]
+
 
     def set_settings(self, settings):
         if not isinstance(settings, dict):
             raise AttributeError("Setting incorrect type") 
         for i in settings.keys():
             self.settings[i] = settings[i]
+
 
     @property
     def get_actions(self):
@@ -86,6 +95,7 @@ class World(object):
             )
         return actions
 
+
     def reset(self, pagents=None):
         self.agents = []
         self.locations = []
@@ -103,10 +113,13 @@ class World(object):
         
         return self.get_actions
     
+
     def get_agent(self, _id):
         for i in self.agents:
             if _id == i._id:
                 return i
+
+
     def learn(self, state, _state):
         logger.info("Learning")
 
