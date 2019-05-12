@@ -35,6 +35,7 @@ def geometric_brownian_motion_log_returns(param):
     :param param: model parameters object
     :return: returns the log returns of a geometric brownian motion process
     """
+    print(param)
     assert isinstance(param, ModelParameters)
     wiener_process = numpy.array(brownian_motion_log_returns(param))
     sigma_pow_mu_delta = (
@@ -48,6 +49,7 @@ def geometric_brownian_motion_levels(param):
     :param param: model parameters object
     :return: the price levels for the asset
     """
+
     return convert_to_prices(param,
                              geometric_brownian_motion_log_returns(param))
 
@@ -213,19 +215,39 @@ def get_correlated_geometric_brownian_motions(param, correlation_matrix, n):
             extracted_paths[i].append(correlated_matrix.item(j + i))
     return extracted_paths
 
+if __name__ == "__main__":
+    paths = 100
+    mp = ModelParameters(
+        all_r0=0.5,
+        all_s0=1000,
+        all_time=800,
+        all_delta=0.00396825396,
+        all_sigma=0.125,
+        gbm_mu=0.058,
+        jumps_lamda=0.0,
+        jumps_sigma=0.125,
+        jumps_mu=0.058,
+        cir_a=0.0,
+        cir_mu=0.0,
+        cir_rho=0.0,
+        ou_a=0.0,
+        ou_mu=0.0,
+        heston_a=0.0,
+        heston_mu=0.0,
+        heston_vol0=0.0)
+    
+    jump_diffusion_examples = []
+    for i in range(paths):
+        jump_diffusion_examples.append(
+            geometric_brownian_motion_jump_diffusion_levels(mp))
 
-# jump_diffusion_examples = []
-# for i in range(paths):
-#     jump_diffusion_examples.append(
-#         geometric_brownian_motion_jump_diffusion_levels(mp))
+
+    stochastic_volatility_examples = []
+    for i in range(paths):
+        stochastic_volatility_examples.append(heston_model_levels(mp)[0])
 
 
-# stochastic_volatility_examples = []
-# for i in range(paths):
-#     stochastic_volatility_examples.append(heston_model_levels(mp)[0])
-
-
-# geometric_brownian_motion_examples = []
-# for i in range(paths):
-#     geometric_brownian_motion_examples.append(
-#         geometric_brownian_motion_levels(mp))
+    geometric_brownian_motion_examples = []
+    for i in range(paths):
+        geometric_brownian_motion_examples.append(
+            geometric_brownian_motion_levels(mp))

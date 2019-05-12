@@ -44,7 +44,7 @@ class UploadCommand(Command):
 
 setup(
     name="funhandler",
-    version="0.6.1",
+    version="0.6.2",
     author="Kevin Hill",
     author_email="kevin@funguana.com",
     description="Data handling library for forward testing",

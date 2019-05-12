@@ -66,11 +66,11 @@ class StochasticGenerator(object):
                  interest_rate=0.5, rate_of_time="monthly",
                  _type="GBM", paths=15):
         """Generate a number of """
-        print(
-            f"{white('Were generating', bold=True)} a {red(_type, bold=True)} stochastic process with {yellow(steps, bold=True)} steps ... {magenta(interest_rate, bold=True)}"
-        )
         assert isinstance(_type, str)
         assert (isinstance(steps, int) or isinstance(steps, float))
+        print(_type.upper(), end="\n\n\n")
+
+
         assert (_type.upper() in self.available_types)
         assert (rate_of_time in list(self.rates_of_time.keys()))
         assert (isinstance(start_price, int) or isinstance(start_price, float))

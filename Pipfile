@@ -17,6 +17,8 @@ ray = "*"
 flask = "*"
 sanic = "*"
 funtime = "*"
+featman = "*"
+jupyter = "*"
 
 [dev-packages]
 pylint = "*"
