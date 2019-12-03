@@ -2,7 +2,7 @@ import numba
 import numpy as np
 from crayons import (blue, cyan, green,
                     magenta, red, white, yellow)
-
+import random
 
 class ModelParameters:
     """
@@ -117,7 +117,28 @@ class StochasticGenerator(object):
             heston_vol0=0.06125
         )
 
-    def generate(self, steps, start_price=1000, interest_rate=0.5, rate_of_time="hourly", _type="GBM", paths=15):
+    def generate_super_parameters(self):
+        self.mp = ModelParameters(
+            all_s0=1000,
+            all_r0=0.5,
+            all_time=800,
+            all_delta=0.00396825396,
+            all_sigma=random.uniform(0.1, 0.8),
+            gbm_mu=random.uniform(-0.3, 0.6),
+            jumps_lamda=random.uniform(0.0071, 0.6),
+            jumps_sigma=random.uniform(-0.03, 0.04),
+            jumps_mu=random.uniform(-0.2, 0.2),
+            cir_a=3.0,
+            cir_mu=0.5,
+            cir_rho=0.5,
+            ou_a=3.0,
+            ou_mu=0.5,
+            heston_a=random.uniform(1, 5),
+            heston_mu=random.uniform(0.156, 0.693),
+            heston_vol0=0.06125
+        )
+    
+    def generate(self, steps, start_price=1000, interest_rate=0.5, rate_of_time="hourly", _type="GBM", paths=15, super_params=True):
         """Generate a number of """
         print(
             f"{white('Were generating', bold=True)} a {red(_type, bold=True)} stochastic process with {yellow(steps, bold=True)} steps"
@@ -127,6 +148,8 @@ class StochasticGenerator(object):
         assert (_type.upper() in self.available_types)
         assert (rate_of_time in list(self.rates_of_time.keys()))
         assert (isinstance(start_price, int) or isinstance(start_price, float))
+        if super_params == True:
+            self.generate_super_parameters()
         self.mp.set_time(steps)
         self.mp.set_start_price(start_price)
 

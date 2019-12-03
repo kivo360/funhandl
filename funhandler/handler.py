@@ -2,6 +2,7 @@ import random
 import time
 import uuid
 from copy import deepcopy
+import copy
 
 import dask
 import numpy as np
@@ -20,11 +21,9 @@ def generate_session(session_id, num=1000, session_type="gbm", trend_rate=0.5):
     base = {"type": "session", "session_id": session_id}
 
     close = stg.generate(num, random.uniform(0.01, 1000), interest_rate=trend_rate, _type=session_type.upper())
-    volume = stg.generate(
-        num,
-        random.normalvariate(10000, 3000),
-        interest_rate=random.normalvariate(1.0, 1.5),
-        _type=session_type.upper())
+    # volume = copy.copy(close)
+    abs_vol = np.random.normal(1, random.uniform(0.01, 0.1), len(close))
+    volume = copy.copy(close) * abs(abs_vol) * random.uniform(5.1, 10.1)
     close = list(close)
     volume = list(volume)
     for i in range(num):
@@ -252,13 +251,14 @@ class InMemoryHandler(object):
             num=steps_in_coin,
             trend_rate=random.normalvariate(-0.3, 0.60),
             session_type=stohastic_type)
-
+        
         step_frame = pd.DataFrame(step_sess)
         ts_extract = step_frame.timestamp
         datetime_index = pd.to_datetime(ts_extract, unit='s')
         step_frame = step_frame.set_index(datetime_index)
         step_frame.drop("timestamp", axis=1)
         self.net_episode_dict[eid][coin_name] = step_frame
+        print(step_frame)
 
 
     def pop_coin(self, eid: str, coin_name: str, **kwargs):
