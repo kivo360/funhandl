@@ -424,7 +424,7 @@ def main():
 
     handle = InMemoryHandler()
     episodes = [uuid.uuid4().hex for x in range(1)]
-    coins = ["BTC", "ETH", "XRP"]
+    coins = ["BTC", "ETH", "XRP","ETC", "TRX"]
     limit = 100
     for eid in episodes:
         for coin in coins:
