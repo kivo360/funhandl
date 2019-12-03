@@ -40,181 +40,181 @@ def generate_session(session_id, num=1000, session_type="gbm", trend_rate=0.5):
     return session_list
 
 
-class Handler(object):
-    def __init__(self):
-        self._store = Store("localhost").create_lib("_global").get_store()['_global']
-        self.session_dict = {}
-        self.episode_dict = {}
+# class Handler(object):
+#     def __init__(self):
+#         # self._store = Store("localhost").create_lib("_global").get_store()['_global']
+#         self.session_dict = {}
+#         self.episode_dict = {}
 
-    def generate_stochastic_episodes(
-            self,
-            episode_number=10,
-            types_per_episode=['GBM', 'HESTON', 'MERTON'],
-            sessions_per_episode=10,
-            steps_per_session=100):
-        """ Generate a local set of stochastic episodes. Reference a set id for all of the episodes """
-        # TODO: Create a list and save using funtime
+#     def generate_stochastic_episodes(
+#             self,
+#             episode_number=10,
+#             types_per_episode=['GBM', 'HESTON', 'MERTON'],
+#             sessions_per_episode=10,
+#             steps_per_session=100):
+#         """ Generate a local set of stochastic episodes. Reference a set id for all of the episodes """
+#         # TODO: Create a list and save using funtime
 
-        # TODO: Create a bulk insert
+#         # TODO: Create a bulk insert
 
-        self.episodes = []
-        self.session_types = types_per_episode
-        # Create episodes
-        # Create sessions first. Save sessions to an episode using an ID
-        # Save an episode to a set using a reference ID
-
-
-        set_id = str(uuid.uuid4())
-        for _ in range(episode_number):
-            nepisode_id = str(uuid.uuid4())
-            self.episodes.append(nepisode_id)
-            self._store.store({
-                "type": "ref",
-                "refname": "set_episode",
-                "episode_id": nepisode_id,
-                "set_id": set_id,
-                "timestamp": time.time()
-            })
+#         self.episodes = []
+#         self.session_types = types_per_episode
+#         # Create episodes
+#         # Create sessions first. Save sessions to an episode using an ID
+#         # Save an episode to a set using a reference ID
 
 
-
-        for ep in self.episodes:
-            for __ in range(sessions_per_episode):
-                session_id = str(uuid.uuid4())
-                self._store.store({
-                    "type": "ref",
-                    "ref_name": "episode_sess",
-                    "episode_id": ep,
-                    "session_id": session_id,
-                    "timestamp": time.time()
-                })
-                # Randomly pick between the options: [GEO, JUMP, DIFFUSION]
-                step_sess = generate_session(
-                    session_id,
-                    num=steps_per_session,
-                    trend_rate=random.normalvariate(0.0, 0.60),
-                    session_type=types_per_episode
-                )
-                # print(step_sess[-1])
-                # dask_computations = []
-                self._store.bulk_upsert(step_sess, _column_first=["type", "session_id"])
-
-                # dask.compute(*dask_computations)
-        print("Done creating sessions")
-        # print(list(self._store.query({"type": "session"})))
-        # print(f"Set_ID: {set_id} \n\nEpisodes: {self.episodes}")
-        return set_id
-
-    def get_episodes(self, set_id):
-        episodes = list(self._store.query({"type": "ref", "refname": "set_episode", "set_id": set_id}))
-        episode_ids = []
-        if len(episodes) > 0:
-            for ep in episodes:
-                del ep['timestamp']
-                episode_ids.append(ep["episode_id"])
-        return episode_ids
-
-    def get_sessions(self, episode_id):
-        session_list = []
-        sessions = list(self._store.query_latest({
-            "type": "ref",
-            "ref_name": "episode_sess",
-            "episode_id": episode_id,
-        }))
-        for s in sessions:
-            session_list.append(s["session_id"])
-        self.episode_dict[episode_id] = session_list
-        return session_list
-
-    def load_session(self, session_id):
-        results = list(self._store.query({
-            "type": "session",
-            "session_id": session_id
-        }))
-
-        sss = Converter().to_dataframe(results)
-        if len(sss) == 0:
-            return None
-        ts = sss['timestamp']
-        dt = pd.to_datetime(ts, unit='s')
-        sss = sss.drop(['timestamp'], axis=1)
-        sss = sss.set_index(pd.DatetimeIndex(dt))
-        sss = sss.sort_index(ascending=False)
-        is_below = (sss.iloc[-1]['close'] < 40)
-        if is_below:
-            sss['base'] = "BTC"
-        else:
-            sss['base'] = "USD"
-
-        self.session_dict[session_id] = sss
-
-        # Get the last
-        print(sss)
-
-        return self.session_dict[session_id]
-
-    def pop_session(self, episode_id):
-        sessions = self.episode_dict.get(episode_id)
-        if sessions == None or len(sessions) == 0:
-            return None
-        session_id = self.episode_dict[episode_id].pop(0)
-        return session_id
-
-    def is_sessions(self, episode_id):
-        sessions = self.episode_dict.get(episode_id)
-        if sessions == None:
-            return False
-        elif len(sessions) == 0:
-            return False
-        else:
-            return True
-
-    def is_session(self, session_id):
-        session = self.session_dict.get(session_id, None)
-        if session is None:
-            return False
-
-        if not isinstance(session, pd.DataFrame):
-            return False
-
-        # if limit provided then it will be the number of rows returned back.
-
-        if len(session) == 0:
-            return False
-
-        return True
+#         set_id = str(uuid.uuid4())
+#         for _ in range(episode_number):
+#             nepisode_id = str(uuid.uuid4())
+#             self.episodes.append(nepisode_id)
+#             self._store.store({
+#                 "type": "ref",
+#                 "refname": "set_episode",
+#                 "episode_id": nepisode_id,
+#                 "set_id": set_id,
+#                 "timestamp": time.time()
+#             })
 
 
-    def pop_data(self, session_id, **kwargs):
-        session = self.session_dict.get(session_id, None)
-        if session is None:
-            return False
 
-        if not isinstance(session, pd.DataFrame):
-            return False
+#         for ep in self.episodes:
+#             for __ in range(sessions_per_episode):
+#                 session_id = str(uuid.uuid4())
+#                 self._store.store({
+#                     "type": "ref",
+#                     "ref_name": "episode_sess",
+#                     "episode_id": ep,
+#                     "session_id": session_id,
+#                     "timestamp": time.time()
+#                 })
+#                 # Randomly pick between the options: [GEO, JUMP, DIFFUSION]
+#                 step_sess = generate_session(
+#                     session_id,
+#                     num=steps_per_session,
+#                     trend_rate=random.normalvariate(0.0, 0.60),
+#                     session_type=types_per_episode
+#                 )
+#                 # print(step_sess[-1])
+#                 # dask_computations = []
+#                 self._store.bulk_upsert(step_sess, _column_first=["type", "session_id"])
 
-        # if limit provided then it will be the number of rows returned back.
+#                 # dask.compute(*dask_computations)
+#         print("Done creating sessions")
+#         # print(list(self._store.query({"type": "session"})))
+#         # print(f"Set_ID: {set_id} \n\nEpisodes: {self.episodes}")
+#         return set_id
 
-        if len(session) == 0:
-            return False
+#     def get_episodes(self, set_id):
+#         episodes = list(self._store.query({"type": "ref", "refname": "set_episode", "set_id": set_id}))
+#         episode_ids = []
+#         if len(episodes) > 0:
+#             for ep in episodes:
+#                 del ep['timestamp']
+#                 episode_ids.append(ep["episode_id"])
+#         return episode_ids
 
-        limit = kwargs.get('limit', 1)
-        result = session.tail(limit).sort_index(ascending=True)
-        session.drop(session.tail(1).index, inplace=True)  # Pop only one bar
-        return result
-    def is_limit(self, frame, limit):
-        if len(frame) >= limit:
-            return True
-        else:
-            return False
+#     def get_sessions(self, episode_id):
+#         session_list = []
+#         sessions = list(self._store.query_latest({
+#             "type": "ref",
+#             "ref_name": "episode_sess",
+#             "episode_id": episode_id,
+#         }))
+#         for s in sessions:
+#             session_list.append(s["session_id"])
+#         self.episode_dict[episode_id] = session_list
+#         return session_list
+
+#     def load_session(self, session_id):
+#         results = list(self._store.query({
+#             "type": "session",
+#             "session_id": session_id
+#         }))
+
+#         sss = Converter().to_dataframe(results)
+#         if len(sss) == 0:
+#             return None
+#         ts = sss['timestamp']
+#         dt = pd.to_datetime(ts, unit='s')
+#         sss = sss.drop(['timestamp'], axis=1)
+#         sss = sss.set_index(pd.DatetimeIndex(dt))
+#         sss = sss.sort_index(ascending=False)
+#         is_below = (sss.iloc[-1]['close'] < 40)
+#         if is_below:
+#             sss['base'] = "BTC"
+#         else:
+#             sss['base'] = "USD"
+
+#         self.session_dict[session_id] = sss
+
+#         # Get the last
+#         print(sss)
+
+#         return self.session_dict[session_id]
+
+#     def pop_session(self, episode_id):
+#         sessions = self.episode_dict.get(episode_id)
+#         if sessions == None or len(sessions) == 0:
+#             return None
+#         session_id = self.episode_dict[episode_id].pop(0)
+#         return session_id
+
+#     def is_sessions(self, episode_id):
+#         sessions = self.episode_dict.get(episode_id)
+#         if sessions == None:
+#             return False
+#         elif len(sessions) == 0:
+#             return False
+#         else:
+#             return True
+
+#     def is_session(self, session_id):
+#         session = self.session_dict.get(session_id, None)
+#         if session is None:
+#             return False
+
+#         if not isinstance(session, pd.DataFrame):
+#             return False
+
+#         # if limit provided then it will be the number of rows returned back.
+
+#         if len(session) == 0:
+#             return False
+
+#         return True
+
+
+#     def pop_data(self, session_id, **kwargs):
+#         session = self.session_dict.get(session_id, None)
+#         if session is None:
+#             return False
+
+#         if not isinstance(session, pd.DataFrame):
+#             return False
+
+#         # if limit provided then it will be the number of rows returned back.
+
+#         if len(session) == 0:
+#             return False
+
+#         limit = kwargs.get('limit', 1)
+#         result = session.tail(limit).sort_index(ascending=True)
+#         session.drop(session.tail(1).index, inplace=True)  # Pop only one bar
+#         return result
+#     def is_limit(self, frame, limit):
+#         if len(frame) >= limit:
+#             return True
+#         else:
+#             return False
 
 
 
 class InMemoryHandler(object):
     def __init__(self):
         """ Handle the creation of the stochastic variables without storing it into the database (for speed purposes) """
-        self._store = Store("localhost").create_lib(
-            "_global").get_store()['_global']
+        # self._store = Store("localhost").create_lib(
+        #     "_global").get_store()['_global']
         self.session_dict = {}
         self.episode_dict = {}
         self.net_episode_dict = {}
@@ -222,10 +222,10 @@ class InMemoryHandler(object):
     def generate_coin_in_episode(self,
             eid:str,
             coin_name:str,
-            steps_in_coin=1000,
-            stohastic_type="GBM"):
+            steps_in_coin=1000, **kwargs):
 
-
+        random_choice = random.choice(["GBM", "HESTON", "MERTON"])
+        stohastic_type = kwargs.get("stochastic_type", random_choice)
         # Check to see if episode exist
         current_episode = self.net_episode_dict.get(eid)
 
@@ -250,7 +250,7 @@ class InMemoryHandler(object):
         step_sess = generate_session(
             coin_name,
             num=steps_in_coin,
-            trend_rate=random.normalvariate(0.0, 0.60),
+            trend_rate=random.normalvariate(-0.3, 0.60),
             session_type=stohastic_type)
 
         step_frame = pd.DataFrame(step_sess)
@@ -339,121 +339,29 @@ class InMemoryHandler(object):
 
             for coin in coins:
                 ccoin = episode[coin]
-                if len(ccoin) > 0:
-                    return False
+
+                if len(ccoin) == 0:
+                    return True
 
         return True
 
-    def generate_stochastic_episodes(
-            self,
-            episode_number=10,
-            types_per_episode=['GBM', 'HESTON', 'MERTON'],
-            sessions_per_episode=10,
-            steps_per_session=100):
-        """ Generate a local set of stochastic episodes. Reference a set id for all of the episodes """
-        # TODO: Create a list and save using funtime
+    def is_coin_done(self, episode, coin, index_len=150):
+        """ Checks to see if there's any more coins left in the frame"""
+        episode = self.net_episode_dict.get(episode, None)
+        
+        if episode is None:
+            return True
 
-        # TODO: Create a bulk insert
+        # Get all of the coins for a given episode
+        coins = episode.keys()
+        if len(coins) == 0:
+            return True
 
-        self.episodes = []
-        self.session_types = types_per_episode
-        # Create episodes
-        # Create sessions first. Save sessions to an episode using an ID
-        # Save an episode to a set using a reference ID
+        current_coin = episode.get(coin, [])
+        if len(current_coin) >= index_len:
+            return False
+        return True
 
-        set_id = str(uuid.uuid4())
-        for _ in range(episode_number):
-            nepisode_id = str(uuid.uuid4())
-            self.episodes.append(nepisode_id)
-            self._store.store({
-                "type": "ref",
-                "refname": "set_episode",
-                "episode_id": nepisode_id,
-                "set_id": set_id,
-                "timestamp": time.time()
-            })
-
-        for ep in self.episodes:
-            for __ in range(sessions_per_episode):
-                session_id = str(uuid.uuid4())
-                self._store.store({
-                    "type": "ref",
-                    "ref_name": "episode_sess",
-                    "episode_id": ep,
-                    "session_id": session_id,
-                    "timestamp": time.time()
-                })
-                # Randomly pick between the options: [GEO, JUMP, DIFFUSION]
-                step_sess = generate_session(
-                    session_id,
-                    num=steps_per_session,
-                    trend_rate=random.normalvariate(0.0, 0.60),
-                    session_type=types_per_episode)
-                # print(step_sess[-1])
-                # dask_computations = []
-                self._store.bulk_upsert(
-                    step_sess, _column_first=["type", "session_id"])
-
-                # dask.compute(*dask_computations)
-        print("Done creating sessions")
-        # print(list(self._store.query({"type": "session"})))
-        # print(f"Set_ID: {set_id} \n\nEpisodes: {self.episodes}")
-        return set_id
-
-    def get_episodes(self, set_id):
-        episodes = list(
-            self._store.query({
-                "type": "ref",
-                "refname": "set_episode",
-                "set_id": set_id
-            }))
-        episode_ids = []
-        if len(episodes) > 0:
-            for ep in episodes:
-                del ep['timestamp']
-                episode_ids.append(ep["episode_id"])
-        return episode_ids
-
-    def get_sessions(self, episode_id):
-        session_list = []
-        sessions = list(
-            self._store.query_latest({
-                "type": "ref",
-                "ref_name": "episode_sess",
-                "episode_id": episode_id,
-            }))
-        for s in sessions:
-            session_list.append(s["session_id"])
-        self.episode_dict[episode_id] = session_list
-        return session_list
-
-    def load_session(self, session_id):
-        results = list(
-            self._store.query({
-                "type": "session",
-                "session_id": session_id
-            }))
-
-        sss = Converter().to_dataframe(results)
-        if len(sss) == 0:
-            return None
-        ts = sss['timestamp']
-        dt = pd.to_datetime(ts, unit='s')
-        sss = sss.drop(['timestamp'], axis=1)
-        sss = sss.set_index(pd.DatetimeIndex(dt))
-        sss = sss.sort_index(ascending=False)
-        is_below = (sss.iloc[-1]['close'] < 40)
-        if is_below:
-            sss['base'] = "BTC"
-        else:
-            sss['base'] = "USD"
-
-        self.session_dict[session_id] = sss
-
-        # Get the last
-        print(sss)
-
-        return self.session_dict[session_id]
 
     def pop_session(self, episode_id):
         sessions = self.episode_dict.get(episode_id) # Instead of popping the session we're just going to get the coin
@@ -538,10 +446,10 @@ def main():
                 coin_data = handle.pop_coin(eid, coin, limit=limit)
                 if coin_data is not None:
                     if len(coin_data) >= limit:
-                        print(coin_data)
+                        print(handle.is_coin_done(eid, coin, limit))
                     else:
                         break
-
+                
         # If so, break the loop
         is_done = handle.is_all_episodes_done()
         if is_done:

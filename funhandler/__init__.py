@@ -20,7 +20,7 @@ from .file_manager import (
     store_cloud_storage,
 )
 
-from .handler import Handler
+from .handler import InMemoryHandler
 this = sys.modules[__name__]
 
 this.store_name = 'datahandler'

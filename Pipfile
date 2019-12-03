@@ -19,6 +19,7 @@ sanic = "*"
 funtime = "*"
 featman = "*"
 jupyter = "*"
+numpy = "*"
 
 [dev-packages]
 pylint = "*"
